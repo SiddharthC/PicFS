@@ -1,0 +1,5 @@
+#!/bin/bash
+ 
+cat somesome somesome.pub > temp 
+cat temp > /proc/buffer1k
+rm -f temp
