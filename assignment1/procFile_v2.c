@@ -27,90 +27,6 @@ struct proc_dir_entry *usernameProcFile;
 
 
 /*
-int procfileRead(char *buffer, char **buffer_location, off_t offset, int buffer_lenght, int *eof, void *data)
-{
-	int ret;
-
-	//Get Current User and Get File Name
-
-	if(offset > 0)
-	{
-		ret = 0;
-	}
-	else
-	{
-		//Check if Current_User == File_Username
-
-		ret = sprintf(buffer, "HelloWorld!\n");
-	}
-
-	return ret;
-}
-
- *
-void keyPairFileCreation(char* username) {
-
-	procFileList[num_users] = create_proc_entry(username, 0444, NULL);
-
-	if(keyFile == NULL)
-	{
-		remove_proc_entry(username, NULL);
-		return -ENOMEM;
-	}
-
-	procFileList[num_users]->read_proc = procfs_read;
-	procFileList[num_users]->write_proc = .....
-	procFileList[num_users]->mode = S_IFREG | S_IRUGO;
-	procFileList[num_users]->uid = 0;
-	procFileList[num_users]->gid = 0;
-	procFileList[num_users]->size = 4096;
-
-	username_list[num_users] = username;
-}
-
- *
-int usernamesFileRead(char *buffer, char **buffer_location, off_t offset, int buffer_length, int *eof, void *data)
-{
-
-	int ret;
-
-	if(offset > 0)
-	{
-		ret = 0;
-	}
-	else
-	{
-		char* usernameBuffer = "";
-		int i;
-	
-		for(i=0; i<num_users; i++) {
-			usernameBuffer += username_list[i];
-			usernameBuffer += '\n'; 
-		}
-		ret = sprtinf(buffer, usernameBuffer); 
-	}
-
-	return ret;
-
-}
-
-
-*
-int usernamesFileWrite(struct file *file, const char *buffer, unsigned long count, void *data) {
-
-	int len = count;
-	char* = writtenData;
-
-	if(count > 8192) len = 8192;
-
-	if(copy_from_user(writtenData, buffer, len))
-		return -EINVAL;
-
-	//SEE WHAT USER WROTE AND ACT ACCORDINGLY
-
-	num_users++;
-	return count;
-}
 */
 
 int keyFileRead(char *buffer, char **buffer_location, off_t offset, int buffer_lenght, int *eof, void *data){
@@ -154,11 +70,8 @@ int initkeyfile(char * username){
 	char *command = (char *) kmalloc(500, GFP_KERNEL);
 	char *argv[] = {"/bin/bash", "-c", command, NULL};
 
-	command = strncat("ssh-keygen -t rsa -b 2048 -f __key -q -N \"\" | cat __key __key.pub > __temp | cat __temp > /proc/", username, USERNAME_MAX_LENGTH);
+	sprintf(command, "ssh-keygen -t rsa -b 2048 -f __key -q -N \"\" && cat __key __key.pub > __temp && cat __temp > /proc/%s && rm -f __temp __key __key.pub", username);
 	
-
-//	char *argv[] = {"/bin/bash", "-c", "ls -la > /__usernames", NULL};
-
 
 	ret = call_usermodehelper(argv[0], argv, envp, UMH_WAIT_EXEC);	
 
