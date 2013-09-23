@@ -16,6 +16,7 @@
 /* 20 character long usernames + null terminator */
 static char usernameList[MAX_USERS][USERNAME_MAX_LENGTH + 1];
 static int num_users = 0;
+static char command[MAX_USERS][500];
 
 static char procfs_ufile_buffer[PROCFS_MAX_USIZE];
 static char procfs_username_buffer[PROCFS_MAX_KEY_SIZE];
@@ -63,17 +64,19 @@ int keyFileWrite(struct file *file, const char *buffer, unsigned long count, voi
 
 
 
-int initkeyfile(char * username){
+int initkeyfile(char * username, int loc){
 	
 	int ret;
 	char *envp[] = {"HOME=/", "TERM=linux", "PATH=/sbin:/usr/sbin:/bin:/usr/bin", NULL};
-	char *command = (char *) kmalloc(500, GFP_KERNEL);
-	char *argv[] = {"/bin/bash", "-c", command, NULL};
 
-	sprintf(command, "ssh-keygen -t rsa -b 2048 -f __key -q -N \"\" && cat __key __key.pub > __temp && cat __temp > /proc/%s && rm -f __temp __key __key.pub", username);
-	
+	sprintf(command[loc], "ssh-keygen -t rsa -b 2048 -C \"%s\" -f __key%s -q -N \"\" && cat __key%s __key%s.pub > __temp%s && cat __temp%s > /proc/%s && rm -f __temp%s __key%s __key%s.pub", username, username, username,username,username,username,username,username, username,username);
 
-	ret = call_usermodehelper(argv[0], argv, envp, UMH_WAIT_EXEC);	
+	printk(KERN_INFO "Value of command is %s\n", command[loc]);
+
+
+	char *argv[] = {"/bin/bash", "-c", command[loc], NULL};
+
+	ret = call_usermodehelper(argv[0], argv, envp, UMH_WAIT_PROC);	
 
 	printk(KERN_INFO "Inside initkeyfile and ret value is %d\n", ret);
 
@@ -97,7 +100,7 @@ int userCreator(char *username, int loc){
 	procfileUserList[loc]->gid = 0;
 	procfileUserList[loc]->size = 4096;
 
-	initkeyfile(username);
+	initkeyfile(username, loc);
 
 	return 0;
 }
