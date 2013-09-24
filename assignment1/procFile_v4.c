@@ -9,6 +9,13 @@
 #include <linux/cred.h>
 #include <linux/sched.h>
 #include <linux/random.h>
+#include <linux/fs.h>
+#include <linux/file.h>
+#include <linux/syscalls.h>
+#include <asm/segment.h>
+#include <linux/buffer_head.h>
+
+
 
 #define userdir "__usernames"
 #define keyfile "key"
@@ -23,11 +30,6 @@
 static int num_users = 0;
 //static char command[MAX_USERS][500];
 
-//static char procfs_ufile_buffer[PROCFS_MAX_USIZE];
-//static char procfs_username_buffer[PROCFS_MAX_KEY_SIZE];
-//static unsigned long procfs_ufile_buffer_size = 0;
-//static unsigned long procfs_username_buffer_size=0;
-
 struct proc_dir_entry *procfileUserList[MAX_USERS];
 struct proc_dir_entry *prockey[MAX_USERS];
 struct proc_dir_entry *usernameProcFile;
@@ -41,10 +43,6 @@ typedef struct _procFileData{
 
 static procFileData userList[MAX_USERS];
 
-//char sourceChars[] = "abcdefghijklmnopqrstuvwxyz0123456789";
-//int scLen = strlen(sourceChars);
-
-
 int keyFileRead(char *buffer, char **buffer_location, off_t offset, int buffer_lenght, int *eof, void *data){
 	int ret;
 
@@ -57,14 +55,12 @@ int keyFileRead(char *buffer, char **buffer_location, off_t offset, int buffer_l
 		if(tempproc->uid == current_uid()){
 			memcpy(buffer, tempproc->privKey, PRIV_KEY_MAX_SIZE);
 			printk(KERN_INFO "uid match private key shown\n");
-			printk(KERN_INFO "Buffer is \n%s\n", buffer);
 
 			ret=PRIV_KEY_MAX_SIZE;
 		}
 		else{
 			memcpy(buffer, tempproc->pubKey, PUB_KEY_MAX_SIZE);
 			printk(KERN_INFO "uid did not match public key shown\n");
-			printk(KERN_INFO "Buffer is \n%s\n", buffer);
 
 			ret=PUB_KEY_MAX_SIZE;
 		}
@@ -108,6 +104,55 @@ void gen_random(char *s, const int len){
 	s[len] = 0;
 }
 
+int read_file_getuid(char *filename, char *username){
+
+	printk(KERN_INFO "in read file \n"); 
+
+	//file reading for uid
+	int i, uid, j=0, dummy;
+	char buf[20000];
+	int look=0;
+
+	char temp[100];
+
+	struct file *f;
+
+	mm_segment_t fs;
+
+	f = filp_open(filename, O_RDONLY, 0);
+
+	if(NULL != f){
+		fs = get_fs();
+		set_fs(get_ds());
+		f->f_op->read(f, buf, 20000, &f->f_pos);
+
+		char *loc = strstr(buf, username);
+
+		for (i=0; i< sizeof(buf); i++){
+			if ((loc[i] == ':') && (look != 3)){
+				look++;
+				memset(temp, 0, sizeof temp);
+				j=0;
+
+			}
+			else if (look == 3){
+				dummy = kstrtoint(temp, 10, &uid);
+				return uid;
+			}
+			else{
+				temp[j] = buf[i];
+				j++;
+			}
+		}
+	
+
+		set_fs(fs);
+	}
+	filp_close(f, NULL);
+	return 0;
+
+}
+
 void bufferRipper(const char *buffer, unsigned long count){
 	
 	int i, usize=0;
@@ -123,19 +168,16 @@ void bufferRipper(const char *buffer, unsigned long count){
 		usize++;	
 	}
 
-	printk(KERN_INFO "User name is - %s", tempname);
 
-//	userList[num_users].uid = current_uid();		//TODO think to implement command id -r <username> could write it to temp file
 	userList[num_users].username = (char *) kmalloc(sizeof(char)*usize, GFP_KERNEL);
 	memcpy(userList[num_users].username, tempname, usize);
 
-	//random keys 2048 and 1024 bytes long
-	//get_random_bytes(userList[num_users].privKey, 2048);
 	gen_random(userList[num_users].privKey, 2048);
 
-	//get_random_bytes(userList[num_users].pubKey, 1024);
 	gen_random(userList[num_users].pubKey, 1024); 
 	
+	userList[num_users].uid = read_file_getuid("/etc/passwd", tempname);
+
 	userCreator(&userList[num_users],num_users);
 	
 	printk(KERN_INFO "User userlistname is - %s", userList[num_users].username);
@@ -146,9 +188,7 @@ void bufferRipper(const char *buffer, unsigned long count){
 
 int usernamesFileRead(char *buffer, char **buffer_location, off_t offset, int buffer_lenght, int *eof, void *data){
 	 int ret, i;
-	 char*templist;
-
-         printk(KERN_INFO "procfile_read (/proc/%s) called\n", userdir);
+	 char *templist;
 
          if(offset > 0)
                  ret=0;
@@ -156,13 +196,14 @@ int usernamesFileRead(char *buffer, char **buffer_location, off_t offset, int bu
          {
 		templist = (char *)kmalloc(sizeof(char)*40*num_users, GFP_KERNEL);
 
+		memset(templist, 0, (sizeof(char)*40*num_users));
+
 		 for (i=0; i< num_users; i++){
 			strcat(templist, userList[i].username);
 			strcat(templist, "\n");
 		 }
 			
 		 memcpy(buffer, templist, sizeof(char)*42*num_users);
-		 printk(KERN_ALERT "after templist memcpy\n");
                  ret = (sizeof(char)*42*num_users);
          }
          return ret;
