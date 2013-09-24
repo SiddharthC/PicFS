@@ -6,73 +6,95 @@
 #include <asm/uaccess.h>
 #include <linux/kmod.h>
 #include <linux/string.h>
-#include <linux/current.h>
+#include <linux/cred.h>
+#include <linux/sched.h>
 
 #define userdir "__usernames"
 #define MAX_USERS 		1000
 #define USERNAME_MAX_LENGTH 	40
 #define PROCFS_MAX_USIZE 	8192
 #define PROCFS_MAX_KEY_SIZE	4096
+#define PRIV_KEY_MAX_SIZE	2048
+#define PUB_KEY_MAX_SIZE	1024
 
 /* 20 character long usernames + null terminator */
 static char usernameList[MAX_USERS][USERNAME_MAX_LENGTH + 1];
 static int num_users = 0;
-static char command[MAX_USERS][500];
+//static char command[MAX_USERS][500];
 
-static char procfs_ufile_buffer[PROCFS_MAX_USIZE];
-static char procfs_username_buffer[PROCFS_MAX_KEY_SIZE];
-static unsigned long procfs_ufile_buffer_size = 0;
-static unsigned long procfs_username_buffer_size=0;
+//static char procfs_ufile_buffer[PROCFS_MAX_USIZE];
+//static char procfs_username_buffer[PROCFS_MAX_KEY_SIZE];
+//static unsigned long procfs_ufile_buffer_size = 0;
+//static unsigned long procfs_username_buffer_size=0;
 
 struct proc_dir_entry *procfileUserList[MAX_USERS];
 struct proc_dir_entry *usernameProcFile;
 
 typedef struct _procFileData{
-	unsigned short uid;
+	uid_t uid;
 	char *username;
-	char *privKey;
-	char *pubKey;
+	char privKey[PRIV_KEY_MAX_SIZE];
+	char pubKey[PUB_KEY_MAX_SIZE];
 }procFileData;
 
 static procFileData userList[MAX_USERS];
 
-//static struct task_struct *cur_task;
+// command to list all real users with root.  echo "root" && cat /etc/passwd | grep '/home' | cut -d: -f1
 
-
-/*
 int keyFileRead(char *buffer, char **buffer_location, off_t offset, int buffer_lenght, int *eof, void *data){
-	 int ret;
+	int ret;
 
-         if(offset > 0)
-         {
-                 ret=0;
-         }
-         else
-         {
-		 memcpy(buffer, procfs_username_buffer, procfs_username_buffer_size);
-		 printk(KERN_ALERT "offset username else is called\n");
-                 ret = procfs_username_buffer_size;
-         }
-         return ret;
+	procFileData *tempproc = (procFileData *) data;
+
+        if(offset > 0)
+                ret=0;
+        else
+        {
+		if(tempproc->uid == current_uid()){
+			memcpy(buffer, tempproc->privKey, PRIV_KEY_MAX_SIZE);
+			printk(KERN_INFO "uid match private key shown\n");
+			printk(KERN_INFO "Buffer is \n%s\n", buffer);
+		}
+		else{
+			memcpy(buffer, tempproc->pubKey, PUB_KEY_MAX_SIZE);
+			printk(KERN_INFO "uid did not match public key shown\n");
+			printk(KERN_INFO "Buffer is \n%s\n", buffer);
+		}
+                 ret = 0;
+        }
+        return ret;
 }
 
 int keyFileWrite(struct file *file, const char *buffer, unsigned long count, void *data){
 
-	procfs_username_buffer_size = count;
+	procFileData *tempproc = (procFileData *) data;
+	char *startLoc, *tempBuffer;
 
-	if(procfs_username_buffer_size > PROCFS_MAX_USIZE){
-		procfs_username_buffer_size = PROCFS_MAX_KEY_SIZE;
-	}
+	char splitString[] = "-----END RSA PRIVATE KEY-----";
+
+	if(count > PROCFS_MAX_KEY_SIZE)
+		count = PROCFS_MAX_KEY_SIZE;
+
+	tempBuffer = (char *) kmalloc(sizeof(char)*count, GFP_KERNEL);
 	
-	if(copy_from_user(procfs_username_buffer, buffer, procfs_username_buffer_size)){
+	if(copy_from_user(tempBuffer, buffer, count)){
 		return -EFAULT;
 	}
 
-	return procfs_username_buffer_size;
+	startLoc = strstr(tempBuffer, splitString);
+
+	if (NULL != startLoc){
+		memcpy(tempproc->privKey, tempBuffer, (startLoc-tempBuffer+30));
+		printk(KERN_INFO "private key is \n%s\n", tempproc->privKey);
+		memcpy(tempproc->pubKey, (startLoc+30), (count-(startLoc-tempBuffer+30)));
+		printk(KERN_INFO "public  key is \n%s\n", tempproc->pubKey);
+	}
+
+	return count;
 
 }
 
-
+/*
 
 int initkeyfile(char * username, int loc){
 	
@@ -104,8 +126,8 @@ int userCreator(procFileData *data, int loc){
 		return -ENOMEM;
 	}
 
-//	procfileUserList[loc]->read_proc = keyFileRead;
-//	procfileUserList[loc]->write_proc = keyFileWrite;
+	procfileUserList[loc]->read_proc = keyFileRead;
+	procfileUserList[loc]->write_proc = keyFileWrite;
 	procfileUserList[loc]->mode = S_IFREG | S_IRUGO;
 	procfileUserList[loc]->uid = 0;
 	procfileUserList[loc]->gid = 0;
@@ -135,9 +157,8 @@ void bufferRipper(const char *buffer, unsigned long count){
 
 	printk(KERN_INFO "User name is - %s", tempname);
 
-//	cur_task = get_current();
-
-	userList[num_users].uid = current->uid;
+	userList[num_users].uid = current_uid();		//TODO think to implement command id -r <username> could write it to temp file
+//	current_uid();
 	userList[num_users].username = (char *) kmalloc(sizeof(char)*usize, GFP_KERNEL);
 	memcpy(userList[num_users].username, tempname, usize);
 	
@@ -158,9 +179,7 @@ int usernamesFileRead(char *buffer, char **buffer_location, off_t offset, int bu
          printk(KERN_INFO "procfile_read (/proc/%s) called\n", userdir);
 
          if(offset > 0)
-         {
                  ret=0;
-         }
          else
          {
 		templist = (char *)kmalloc(sizeof(char)*40*num_users, GFP_KERNEL);
@@ -233,7 +252,7 @@ void cleanup_module()
 {
 	int i;
 	for(i=0; i<num_users; i++) {
-		char* username = usernameList[i];
+		char* username = userList[i].username;
 		remove_proc_entry(username, NULL);
 	}
 
