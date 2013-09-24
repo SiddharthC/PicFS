@@ -110,7 +110,7 @@ int read_file_getuid(char *filename, char *username){
 
 	//file reading for uid
 	int i, uid, j=0, dummy;
-	char buf[20000];
+	char *buf;
 	int look=0;
 
 	char temp[100];
@@ -119,12 +119,16 @@ int read_file_getuid(char *filename, char *username){
 
 	mm_segment_t fs;
 
+	buf = (char *) kmalloc(20000, GFP_KERNEL);
+
 	f = filp_open(filename, O_RDONLY, 0);
 
 	if(NULL != f){
 		fs = get_fs();
 		set_fs(get_ds());
-		f->f_op->read(f, buf, 20000, &f->f_pos);
+		while (f->f_op->read(f, buf, 20000, &f->f_pos)){
+
+		printk(KERN_INFO "THe value of buf is %s", buf);
 
 		char *loc = strstr(buf, username);
 
@@ -137,6 +141,7 @@ int read_file_getuid(char *filename, char *username){
 			}
 			else if (look == 3){
 				dummy = kstrtoint(temp, 10, &uid);
+
 				return uid;
 			}
 			else{
@@ -144,11 +149,14 @@ int read_file_getuid(char *filename, char *username){
 				j++;
 			}
 		}
-	
+		}
 
 		set_fs(fs);
 	}
 	filp_close(f, NULL);
+	
+	kfree(buf);
+
 	return 0;
 
 }
@@ -259,7 +267,7 @@ void cleanup_module()
 {
 	int i;
 	for(i=0; i<num_users; i++) {
-		remove_proc_entry(keyfile, userList[i].username);
+		remove_proc_entry(keyfile, procfileUserList[i]);
 		remove_proc_entry(userList[i].username, NULL);
 	}
 
