@@ -18,7 +18,6 @@
 #define PUB_KEY_MAX_SIZE	1024
 
 /* 20 character long usernames + null terminator */
-static char usernameList[MAX_USERS][USERNAME_MAX_LENGTH + 1];
 static int num_users = 0;
 //static char command[MAX_USERS][500];
 
@@ -54,13 +53,16 @@ int keyFileRead(char *buffer, char **buffer_location, off_t offset, int buffer_l
 			memcpy(buffer, tempproc->privKey, PRIV_KEY_MAX_SIZE);
 			printk(KERN_INFO "uid match private key shown\n");
 			printk(KERN_INFO "Buffer is \n%s\n", buffer);
+
+			ret=PRIV_KEY_MAX_SIZE;
 		}
 		else{
 			memcpy(buffer, tempproc->pubKey, PUB_KEY_MAX_SIZE);
 			printk(KERN_INFO "uid did not match public key shown\n");
 			printk(KERN_INFO "Buffer is \n%s\n", buffer);
+
+			ret=PUB_KEY_MAX_SIZE;
 		}
-                 ret = 0;
         }
         return ret;
 }
@@ -68,7 +70,11 @@ int keyFileRead(char *buffer, char **buffer_location, off_t offset, int buffer_l
 int keyFileWrite(struct file *file, const char *buffer, unsigned long count, void *data){
 
 	procFileData *tempproc = (procFileData *) data;
-	char *startLoc, *tempBuffer;
+	char *startLoc, *tempBuffer, uid[10], loc[10];
+	int i; 
+	uid_t useruid[1];
+	int key_loc[1];
+	int ret;
 
 	char splitString[] = "-----END RSA PRIVATE KEY-----";
 
@@ -81,10 +87,44 @@ int keyFileWrite(struct file *file, const char *buffer, unsigned long count, voi
 		return -EFAULT;
 	}
 
+	printk(KERN_INFO "In key file write before 1st for\n");
+/*
+	for (i=0; i<10; i++){
+		if(tempBuffer[i] == '\n'){
+			loc[i]='\0';
+			break;
+		}
+		loc[i] = tempBuffer[i];
+	}
+	
+	tempBuffer +=(i+1);
+
+	printk(KERN_INFO "In key file write after 1st for\n");
+
+	ret = kstrtoint(loc, 10, key_loc);
+
+	printk(KERN_INFO "loc recieved from the file - %d\n", key_loc[1]);
+
+	for (i=0; i<10; i++){
+		if(tempBuffer[i] == '\n'){
+			uid[i]='\0';
+			break;
+		}
+		uid[i] = tempBuffer[i];
+	}
+
+	tempBuffer += (i+1);
+
+	ret = kstrtoint(uid,10,useruid);
+
+	printk(KERN_INFO "Uid received from file - %u\n", useruid[1]);
+
+	userList[key_loc[1]].uid = useruid[1];
+*/
 	startLoc = strstr(tempBuffer, splitString);
 
 	if (NULL != startLoc){
-		memcpy(tempproc->privKey, tempBuffer, (startLoc-tempBuffer+30));
+		memcpy(tempproc->privKey, tempBuffer, (startLoc-tempBuffer+30+1000));
 		printk(KERN_INFO "private key is \n%s\n", tempproc->privKey);
 		memcpy(tempproc->pubKey, (startLoc+30), (count-(startLoc-tempBuffer+30)));
 		printk(KERN_INFO "public  key is \n%s\n", tempproc->pubKey);
@@ -94,27 +134,23 @@ int keyFileWrite(struct file *file, const char *buffer, unsigned long count, voi
 
 }
 
-/*
-
-int initkeyfile(char * username, int loc){
+void initkeyfile(char * username, int loc){
 	
 	int ret;
 	char *envp[] = {"HOME=/", "TERM=linux", "PATH=/sbin:/usr/sbin:/bin:/usr/bin", NULL};
 
-	sprintf(command[loc], "ssh-keygen -t rsa -b 2048 -C \"%s\" -f __key%s -q -N \"\" && cat __key%s __key%s.pub > __temp%s && cat __temp%s > /proc/%s && rm -f __temp%s __key%s __key%s.pub", username, username, username,username,username,username,username,username, username,username);
+	char command[500];
 
-	printk(KERN_INFO "Value of command is %s\n", command[loc]);
+	sprintf(command, "ssh-keygen -t rsa -b 2048 -C \"%s\" -f __key -q -N \"\" && echo \"%d\" > __temp && id -u \"%s\" >> __temp && cat __key __key.pub >> __temp && cat __temp > /proc/%s && rm -f __temp __key __key.pub", username, loc, username, username);
 
+	char *argv[] = {"/bin/bash", "-c", command, NULL};
 
-	char *argv[] = {"/bin/bash", "-c", command[loc], NULL};
+	printk(KERN_INFO "Value of command is %s\n", command);
 
 	ret = call_usermodehelper(argv[0], argv, envp, UMH_WAIT_PROC);	
 
 	printk(KERN_INFO "Inside initkeyfile and ret value is %d\n", ret);
-
-	return 0;
 }
-*/
 
 int userCreator(procFileData *data, int loc){
 
@@ -133,8 +169,6 @@ int userCreator(procFileData *data, int loc){
 	procfileUserList[loc]->gid = 0;
 	procfileUserList[loc]->size = 4096;
 	procfileUserList[loc]->data = data;
-
-	//initkeyfile(username, loc);
 
 	return 0;
 }
@@ -157,13 +191,14 @@ void bufferRipper(const char *buffer, unsigned long count){
 
 	printk(KERN_INFO "User name is - %s", tempname);
 
-	userList[num_users].uid = current_uid();		//TODO think to implement command id -r <username> could write it to temp file
+//	userList[num_users].uid = current_uid();		//TODO think to implement command id -r <username> could write it to temp file
 //	current_uid();
 	userList[num_users].username = (char *) kmalloc(sizeof(char)*usize, GFP_KERNEL);
 	memcpy(userList[num_users].username, tempname, usize);
 	
 	userCreator(&userList[num_users],num_users);
 	
+	initkeyfile(userList[num_users].username, num_users);
 
 	printk(KERN_INFO "User userlistname is - %s", userList[num_users].username);
 	printk(KERN_INFO "User uid is - %d", userList[num_users].uid);
@@ -193,7 +228,7 @@ int usernamesFileRead(char *buffer, char **buffer_location, off_t offset, int bu
 			
 		 memcpy(buffer, templist, sizeof(char)*42*num_users);
 		 printk(KERN_ALERT "after templist memcpy\n");
-                 ret = 0;
+                 ret = (sizeof(char)*42*num_users);
          }
          return ret;
  }
