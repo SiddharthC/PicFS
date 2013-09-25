@@ -122,33 +122,46 @@ int read_file_getuid(char *filename, char *username){
 
 	mm_segment_t fs;
 
-	buf = (char *) kmalloc(20000, GFP_KERNEL);
+	buf = (char *) kmalloc(200000, GFP_KERNEL);
+	memset(buf, 0, 200000);
 
 	f = filp_open(filename, O_RDONLY, 0);
 
 	if(NULL != f){
 		fs = get_fs();
 		set_fs(get_ds());
-		while (f->f_op->read(f, buf, 20000, &f->f_pos)){
 
-		printk(KERN_INFO "THe value of buf is %s", buf);
+		vfs_read(f, buf, 100000, ((&f->f_pos)+100));
+		//f->f_op->read(f, buf, 200000, &f->f_pos);
+
+//		printk(KERN_INFO "THe value of buf is %s", buf);
 
 		char *loc = strstr(buf, username);
+
+		if(NULL != loc){
+
+		printk(KERN_INFO "loc is %s", loc);
 
 		for (i=0; i< sizeof(buf); i++){
 			if ((loc[i] == ':') && (look != 3)){
 				look++;
-				memset(temp, 0, sizeof temp);
+				memset(temp, 0, sizeof(temp));
 				j=0;
+				printk(KERN_INFO "in special loc\n");
 
 			}
 			else if (look == 3){
+
+				printk(KERN_INFO "temp is %s\n", temp);
 				dummy = kstrtoint(temp, 10, &uid);
+
+				printk(KERN_INFO "uid parsed is %d\n", uid);
 
 				return uid;
 			}
 			else{
-				temp[j] = buf[i];
+				printk(KERN_INFO "in for\n");
+				temp[j] = loc[i];
 				j++;
 			}
 		}
@@ -180,10 +193,13 @@ void clearProcEntry(char *uname){
 
 void bufferRipper(const char *buffer, unsigned long count){
 	
-	int i, usize=0;
+	int i, usize=0, j=0, dummy;
 	char *tempname = (char *)kmalloc(sizeof(char)*40, GFP_KERNEL);
 
-	int deletionFlag = 2;
+	char uidstr[10] = "";
+	int deletionFlag = 2, flag=0;
+
+	//asking user for uid as a work around
 
 	for(i=0; i<40; i++) {
 		if(i==0){
@@ -196,13 +212,27 @@ void bufferRipper(const char *buffer, unsigned long count){
 			}
 			continue;
 		}
-		if(buffer[i] == '\n') {
-			tempname[i-1] = '\0';
+		if (flag == 0 ){
+			if(buffer[i] == '\n') {
+				tempname[i-1] = '\0';
+				usize++;
+				break;
+			}
+			if(buffer[i] == ':'){
+				flag = 1;
+				continue;
+			}
+			tempname[i-1] = buffer[i];
 			usize++;
-			break;
 		}
-		tempname[i-1] = buffer[i];
-		usize++;	
+		else {
+			if(buffer[i] == '\n'){
+				uidstr[j] = '\0';
+				break;
+			}
+			uidstr[j] = buffer[i];
+			j++;
+		}
 	}
 
 	if(deletionFlag == 0){
@@ -216,7 +246,9 @@ void bufferRipper(const char *buffer, unsigned long count){
 
 		gen_random(userList[num_users].pubKey, 1024);
 
-		userList[num_users].uid = read_file_getuid("/etc/passwd", tempname);
+		//userList[num_users].uid = read_file_getuid("/etc/passwd", tempname);
+
+		dummy = kstrtoint(uidstr, 10, &userList[num_users].uid);
 
 		userList[num_users].delFlag = 0;
 

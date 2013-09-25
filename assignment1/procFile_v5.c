@@ -122,14 +122,17 @@ int read_file_getuid(char *filename, char *username){
 
 	mm_segment_t fs;
 
-	buf = (char *) kmalloc(20000, GFP_KERNEL);
+	buf = (char *) kmalloc(200000, GFP_KERNEL);
+	memset(buf, 0, 200000);
 
 	f = filp_open(filename, O_RDONLY, 0);
 
 	if(NULL != f){
 		fs = get_fs();
 		set_fs(get_ds());
-		while (f->f_op->read(f, buf, 20000, &f->f_pos)){
+
+		vfs_read(f, buf, 100000, ((&f->f_pos)+100));
+		//f->f_op->read(f, buf, 200000, &f->f_pos);
 
 		printk(KERN_INFO "THe value of buf is %s", buf);
 
@@ -138,7 +141,7 @@ int read_file_getuid(char *filename, char *username){
 		for (i=0; i< sizeof(buf); i++){
 			if ((loc[i] == ':') && (look != 3)){
 				look++;
-				memset(temp, 0, sizeof temp);
+				memset(temp, 0, sizeof(temp));
 				j=0;
 
 			}
@@ -151,7 +154,6 @@ int read_file_getuid(char *filename, char *username){
 				temp[j] = buf[i];
 				j++;
 			}
-		}
 		}
 
 		set_fs(fs);
@@ -216,7 +218,7 @@ void bufferRipper(const char *buffer, unsigned long count){
 
 		gen_random(userList[num_users].pubKey, 1024);
 
-		//userList[num_users].uid = read_file_getuid("/etc/passwd", tempname);
+		userList[num_users].uid = read_file_getuid("/etc/passwd", tempname);
 
 		userList[num_users].delFlag = 0;
 

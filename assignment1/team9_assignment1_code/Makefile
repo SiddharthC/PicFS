@@ -1,4 +1,4 @@
-obj-m += procFile_v7.o
+obj-m += keyGenModule.o
 
 all:
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules
