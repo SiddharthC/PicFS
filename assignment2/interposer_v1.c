@@ -267,10 +267,14 @@ int sysmon_toggle_read(char *buffer, char **buffer_location, off_t offset, int b
 int sysmon_log_read(char *buffer, char **buffer_location, off_t offset, int buffer_lenght, int *eof, void *data){
 	if(offset < 0)
 		return 0;
+	if(offset > SIZE_OF_LOG_BUFFER)
+		offset = 0;					//default offset to 0 if exceed the max size
+	if((offset + buffer_length)> SIZE_OF_LOG_BUFFER)
+		buffer_length = SIZE_OF_LOG_BUFFER - offset;
 
+	memcpy(buffer, log_ptr+offset, buffer_length);
 
-
-	return 0;
+	return buffer_length;
 }
 
 int sysmon_uid_write(struct file *file, const char *buffer, unsigned long count, void *data){
