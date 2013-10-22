@@ -49,7 +49,7 @@ int keyFileRead(char *buffer, char **buffer_location, off_t offset, int buffer_l
 
 	procFileData *tempproc = (procFileData *) data;
 
-        if(offset > 0)
+        if(offset < 0)
                 ret=0;
         else
         {
@@ -275,7 +275,7 @@ int usernamesFileRead(char *buffer, char **buffer_location, off_t offset, int bu
 	 int ret, i;
 	 char *templist;
 
-         if(offset > 0)
+         if(offset < 0)
                  ret=0;
          else
          {
