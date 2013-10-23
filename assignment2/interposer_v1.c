@@ -46,176 +46,179 @@ int log_offset;
 
 static struct kprobe probe[NUM_SYSCALL_MONITORED];
 
-//Structures
-
-char syscalls[NUM_SYSCALL_MONITORED][15] = {"sys_access", "sys_brk", "sys_chdir", "sys_chmod", "sys_clone", "sys_close", "sys_dup", "sys_dup2",
-		   "sys_execve", "sys_exit_group", "sys_fcntl", "sys_fork", "sys_getdents", "sys_getpid", "sys_gettid",
-		   "sys_ioctl", "sys_lseek", "sys_mkdir", "sys_mmap", "sys_munmap", "sys_open", "sys_pipe", "sys_read",
-		   "sys_rmdir", "sys_select", "sys_stat", "sys_fstat", "sys_lstat", "sys_wait4", "sys_write"};
- 
 //*************************************************************************************************************//
 // Function Definitions
 
 static int sysmon_intercept_before(struct kprobe *kp, struct pt_regs *regs)
 {
 	int ret = 0;
-	if (current_uid() != uid_monitored_int)
+	char temp_print[500] = {0};
+	if (toggle_monitored_int && (current_uid() != uid_monitored_int))
 		return 0;
+
 	switch (regs->ax) {
+		
 		case __NR_access:
-			printk(KERN_INFO MODULE_NAME /* sycall pid tid args.. */
-				"%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid,
-				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);
+//			sprintf(temp_print, "%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid, 
+//					(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);
+//			strcat(log_ptr, temp_print);								//check for overflow first TODO
 			break;
 		case __NR_brk:
-			printk(KERN_INFO MODULE_NAME /* sycall pid tid args.. */
+			printk(KERN_INFO MODULE_NAME 
 				"%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid,
 				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);
 			break;
 		case __NR_chdir:
-			printk(KERN_INFO MODULE_NAME /* sycall pid tid args.. */
+			printk(KERN_INFO MODULE_NAME 
 				"%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid,
 				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);
 			break;
 		case __NR_chmod:
-			printk(KERN_INFO MODULE_NAME /* sycall pid tid args.. */
+			printk(KERN_INFO MODULE_NAME 
 				"%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid,
 				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);
 			break;
+			/*
 		case __NR_clone:
-			printk(KERN_INFO MODULE_NAME /* sycall pid tid args.. */
+			printk(KERN_INFO MODULE_NAME 
 				"%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid,
 				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);
 			break;
 		case __NR_close:
-			printk(KERN_INFO MODULE_NAME /* sycall pid tid args.. */
+			printk(KERN_INFO MODULE_NAME 
 				"%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid,
 				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);
 			break;
 		case __NR_dup:
-			printk(KERN_INFO MODULE_NAME /* sycall pid tid args.. */
+			printk(KERN_INFO MODULE_NAME 
 				"%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid,
 				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);
 			break;
 		case __NR_dup2:
-			printk(KERN_INFO MODULE_NAME /* sycall pid tid args.. */
+			printk(KERN_INFO MODULE_NAME 
 				"%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid,
 				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);
 			break;
 		case __NR_execve:
-			printk(KERN_INFO MODULE_NAME /* sycall pid tid args.. */
+			printk(KERN_INFO MODULE_NAME 
 				"%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid,
 				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);
 			break;
 		case __NR_exit_group:
-			printk(KERN_INFO MODULE_NAME /* sycall pid tid args.. */
+			printk(KERN_INFO MODULE_NAME 
 				"%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid,
 				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);
 			break;
 		case __NR_fcntl:
-			printk(KERN_INFO MODULE_NAME /* sycall pid tid args.. */
+			printk(KERN_INFO MODULE_NAME 
 				"%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid,
 				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);
 			break;
 		case __NR_fork:
-			printk(KERN_INFO MODULE_NAME /* sycall pid tid args.. */
+			printk(KERN_INFO MODULE_NAME 
 				"%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid,
 				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);
 			break;
 		case __NR_getdents:
-			printk(KERN_INFO MODULE_NAME /* sycall pid tid args.. */
+			printk(KERN_INFO MODULE_NAME 
 				"%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid,
 				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);
 			break;
 		case __NR_getpid:
-			printk(KERN_INFO MODULE_NAME /* sycall pid tid args.. */
+			printk(KERN_INFO MODULE_NAME 
 				"%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid,
 				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);
 			break;
 		case __NR_gettid:
-			printk(KERN_INFO MODULE_NAME /* sycall pid tid args.. */
+			printk(KERN_INFO MODULE_NAME 
 				"%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid,
 				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);
 			break;
 		case __NR_ioctl:
-			printk(KERN_INFO MODULE_NAME /* sycall pid tid args.. */
+			printk(KERN_INFO MODULE_NAME 
 				"%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid,
 				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);
 			break;
 		case __NR_lseek:
-			printk(KERN_INFO MODULE_NAME /* sycall pid tid args.. */
+			printk(KERN_INFO MODULE_NAME 
 				"%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid,
 				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);
 			break;
 		case __NR_mkdir:
-			printk(KERN_INFO MODULE_NAME /* sycall pid tid args.. */
-				"%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid,
-				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);
+//			sprintf(temp_print, "%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid, 
+//					(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);
+//			strcat(log_ptr, temp_print);								//check for overflow first TODO
+//			break;
+//			printk(KERN_INFO MODULE_NAME 
+//				"%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid,
+//				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);
 			break;
 		case __NR_mmap:
-			printk(KERN_INFO MODULE_NAME /* sycall pid tid args.. */
+			printk(KERN_INFO MODULE_NAME 
 				"%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid,
 				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);
 			break;
 		case __NR_munmap:
-			printk(KERN_INFO MODULE_NAME /* sycall pid tid args.. */
+			printk(KERN_INFO MODULE_NAME 
 				"%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid,
 				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);
 			break;
 		case __NR_open:
-			printk(KERN_INFO MODULE_NAME /* sycall pid tid args.. */
+			printk(KERN_INFO MODULE_NAME 
 				"%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid,
 				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);
 			break;
 		case __NR_pipe:
-			printk(KERN_INFO MODULE_NAME /* sycall pid tid args.. */
+			printk(KERN_INFO MODULE_NAME
 				"%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid,
 				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);
 			break;
 		case __NR_read:
-			printk(KERN_INFO MODULE_NAME /* sycall pid tid args.. */
+			printk(KERN_INFO MODULE_NAME 
 				"%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid,
 				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);
 			break;
 		case __NR_rmdir:
-			printk(KERN_INFO MODULE_NAME /* sycall pid tid args.. */
+			printk(KERN_INFO MODULE_NAME 
 				"%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid,
 				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);
 			break;
 		case __NR_select:
-			printk(KERN_INFO MODULE_NAME /* sycall pid tid args.. */
+			printk(KERN_INFO MODULE_NAME 
 				"%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid,
 				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);
 			break;
 		case __NR_stat:
-			printk(KERN_INFO MODULE_NAME /* sycall pid tid args.. */
+			printk(KERN_INFO MODULE_NAME 
 				"%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid,
 				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);
 			break;
 		case __NR_fstat:
-			printk(KERN_INFO MODULE_NAME /* sycall pid tid args.. */
+			printk(KERN_INFO MODULE_NAME 
 				"%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid,
 				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);
 			break;
 		case __NR_lstat:
-			printk(KERN_INFO MODULE_NAME /* sycall pid tid args.. */
+			printk(KERN_INFO MODULE_NAME 
 				"%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid,
 				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);
 			break;
 		case __NR_wait4:
-			printk(KERN_INFO MODULE_NAME /* sycall pid tid args.. */
+			printk(KERN_INFO MODULE_NAME 
 				"%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid,
 				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);
 			break;
 		case __NR_write:
-			printk(KERN_INFO MODULE_NAME /* sycall pid tid args.. */
+			printk(KERN_INFO MODULE_NAME 
 				"%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid,
 				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);
 			break;
+			*/
 		default:
 			ret = -1;
 			break;
 	}
+
 	return ret;
 }
 
@@ -226,9 +229,40 @@ static void sysmon_intercept_after(struct kprobe *kp, struct pt_regs *regs, unsi
 
 int probe_creator(void){
 	int i;
+
+	probe[1].symbol_name = "sys_access";
+	probe[2].symbol_name = "sys_brk";
+	probe[3].symbol_name = "sys_chdir";
+	probe[4].symbol_name = "sys_chmod";
+	probe[5].symbol_name = "sys_clone";
+	probe[6].symbol_name = "sys_close";
+	probe[7].symbol_name = "sys_dup";
+	probe[8].symbol_name = "sys_dup2";
+	probe[9].symbol_name = "sys_execve";
+	probe[10].symbol_name = "sys_exit_group";
+	probe[11].symbol_name = "sys_fcntl";
+	probe[12].symbol_name = "sys_fork";
+	probe[13].symbol_name = "sys_getdents";
+	probe[14].symbol_name = "sys_getpid";
+	probe[15].symbol_name = "sys_gettid";
+	probe[16].symbol_name = "sys_ioctl";
+	probe[17].symbol_name = "sys_lseek";
+	probe[18].symbol_name = "sys_mkdir";
+	probe[19].symbol_name = "sys_mmap";
+	probe[20].symbol_name = "sys_munmap";
+	probe[21].symbol_name = "sys_open";
+	probe[22].symbol_name = "sys_pipe";
+	probe[23].symbol_name = "sys_read";
+	probe[24].symbol_name = "sys_rmdir";
+	probe[25].symbol_name = "sys_select";
+	probe[26].symbol_name = "sys_stat";
+	probe[27].symbol_name = "sys_fstat";
+	probe[28].symbol_name = "sys_lstat";
+	probe[29].symbol_name = "sys_wait4";
+	probe[0].symbol_name = "sys_write";
+
 	for(i=0; i<NUM_SYSCALL_MONITORED; i++)
 	{
-		probe[i].symbol_name = syscalls[i];
 		probe[i].pre_handler = sysmon_intercept_before; /* called prior to function */
 		probe[i].post_handler = sysmon_intercept_after; /* called on function return */
 		if (register_kprobe(&probe[i])) {
@@ -264,7 +298,7 @@ int sysmon_toggle_read(char *buffer, char **buffer_location, off_t offset, int b
 
 }
 
-int sysmon_log_read(char *buffer, char **buffer_location, off_t offset, int buffer_lenght, int *eof, void *data){
+int sysmon_log_read(char *buffer, char **buffer_location, off_t offset, int buffer_length, int *eof, void *data){
 	if(offset < 0)
 		return 0;
 	if(offset > SIZE_OF_LOG_BUFFER)
@@ -391,7 +425,7 @@ int init_log(void){
 	log_ptr = (char *)kmalloc(SIZE_OF_LOG_BUFFER * sizeof(char), GFP_KERNEL);
 	if(!log_ptr)
 		return -ENOMEM;
-	memset(log_ptr, 0, sizeof(char)*count);
+	memset(log_ptr, 0, sizeof(char)*SIZE_OF_LOG_BUFFER);
 	return 0;
 }
 
@@ -407,7 +441,7 @@ void cleanup_module()
 {
 	int i;
 
-	free(log_ptr);
+	kfree(log_ptr);
 
 	for(i=0; i<NUM_SYSCALL_MONITORED; i++)
 		unregister_kprobe(&probe[i]);	
