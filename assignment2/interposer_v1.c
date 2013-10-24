@@ -53,114 +53,102 @@ static int sysmon_intercept_before(struct kprobe *kp, struct pt_regs *regs)
 {
 	int ret = 0;
 	char temp_print[500] = {0};
+	printk(KERN_INFO "Value of toggle is %d.", toggle_monitored_int);
 	if (toggle_monitored_int && (current_uid() != uid_monitored_int))
 		return 0;
 
 	switch (regs->ax) {
 		
 		case __NR_access:
-//			sprintf(temp_print, "%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid, 
-//					(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);
-//			strcat(log_ptr, temp_print);								
+			sprintf(temp_print, "User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
+					current_uid(), regs->ax, current->pid, current->tgid); 
+			strcat(log_ptr, temp_print);								
 //			//check for overflow first TODO
 			break;
 		case __NR_brk:
-			printk(KERN_INFO MODULE_NAME 
-				"%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid,
-				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);			
-
+			sprintf(temp_print, "User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
+					current_uid(), regs->ax, current->pid, current->tgid); 
+			strcat(log_ptr, temp_print);	
 			break;
 		case __NR_chdir:
-			printk(KERN_INFO MODULE_NAME 
-				"%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid,
-				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);			
-
+			sprintf(temp_print, "User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
+					current_uid(), regs->ax, current->pid, current->tgid); 
+			strcat(log_ptr, temp_print);	
 			break;
 		case __NR_chmod:
-			printk(KERN_INFO MODULE_NAME 
-				"%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid,
-				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);			
-
+			sprintf(temp_print, "User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
+					current_uid(), regs->ax, current->pid, current->tgid); 
+			strcat(log_ptr, temp_print);	
 			break;
 		case __NR_clone:
-			printk(KERN_INFO MODULE_NAME 
-				"%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid,
-				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);			
-
+			sprintf(temp_print, "User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
+					current_uid(), regs->ax, current->pid, current->tgid); 
+			strcat(log_ptr, temp_print);	
 			break;
 		case __NR_close:
-			printk(KERN_INFO MODULE_NAME 
-				"%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid,
-				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);			
-
+			sprintf(temp_print, "User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
+					current_uid(), regs->ax, current->pid, current->tgid); 
+			strcat(log_ptr, temp_print);	
 			break;
 		case __NR_dup:
-			printk(KERN_INFO MODULE_NAME 
-				"%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid,
-				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);			
-
+			sprintf(temp_print, "User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
+					current_uid(), regs->ax, current->pid, current->tgid); 
+			strcat(log_ptr, temp_print);	
 			break;
 		case __NR_dup2:
-			printk(KERN_INFO MODULE_NAME 
-				"%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid,
-				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);			
-
+			sprintf(temp_print, "User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
+					current_uid(), regs->ax, current->pid, current->tgid); 
+			strcat(log_ptr, temp_print);	
 			break;
 		case __NR_execve:
-			printk(KERN_INFO MODULE_NAME 
-				"%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid,
-				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);			
-
+			sprintf(temp_print, "User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
+					current_uid(), regs->ax, current->pid, current->tgid); 
+			strcat(log_ptr, temp_print);	
 			break;
 		case __NR_exit_group:
-			printk(KERN_INFO MODULE_NAME 
-				"%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid,
-				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);			
-
+			sprintf(temp_print, "User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
+					current_uid(), regs->ax, current->pid, current->tgid); 
+			strcat(log_ptr, temp_print);	
 			break;
 		case __NR_fcntl:
-			printk(KERN_INFO MODULE_NAME 
-				"%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid,
-				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);			
-
+			sprintf(temp_print, "User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
+					current_uid(), regs->ax, current->pid, current->tgid); 
+			strcat(log_ptr, temp_print);	
 			break;
 		case __NR_fork:
-			printk(KERN_INFO MODULE_NAME 
-				"%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid,
-				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);			
-
+			sprintf(temp_print, "User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
+					current_uid(), regs->ax, current->pid, current->tgid); 
+			strcat(log_ptr, temp_print);	
 			break;
 		case __NR_getdents:
-			printk(KERN_INFO MODULE_NAME 
-				"%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid,
-				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);			
-
+			sprintf(temp_print, "User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
+					current_uid(), regs->ax, current->pid, current->tgid); 
+			strcat(log_ptr, temp_print);	
 			break;
 		case __NR_getpid:
-			printk(KERN_INFO MODULE_NAME 
-				"%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid,
-				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);			
-
+			sprintf(temp_print, "User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
+					current_uid(), regs->ax, current->pid, current->tgid); 
+			strcat(log_ptr, temp_print);	
 			break;
 		case __NR_gettid:
-			printk(KERN_INFO MODULE_NAME 
-				"%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid,
-				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);			
-
+			sprintf(temp_print, "User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
+					current_uid(), regs->ax, current->pid, current->tgid); 
+			strcat(log_ptr, temp_print);	
 			break;
 		case __NR_ioctl:
-			printk(KERN_INFO MODULE_NAME 
-				"%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid,
-				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);			
-
+			sprintf(temp_print, "User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
+					current_uid(), regs->ax, current->pid, current->tgid); 
+			strcat(log_ptr, temp_print);	
 			break;
 		case __NR_lseek:
-			printk(KERN_INFO MODULE_NAME 
-				"%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid,
-				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);			
-
+			sprintf(temp_print, "User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
+					current_uid(), regs->ax, current->pid, current->tgid); 
+			strcat(log_ptr, temp_print);	
 			break;
 		case __NR_mkdir:
+			sprintf(temp_print, "User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
+					current_uid(), regs->ax, current->pid, current->tgid); 
+			strcat(log_ptr, temp_print);	
 //			sprintf(temp_print, "%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid, 
 //					(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);
 //			strcat(log_ptr, temp_print);								//check for overflow first TODO
@@ -170,74 +158,68 @@ static int sysmon_intercept_before(struct kprobe *kp, struct pt_regs *regs)
 				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);
 			break;
 		case __NR_mmap:
-			printk(KERN_INFO MODULE_NAME 
-				"%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid,
-				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);
-		
+			sprintf(temp_print, "User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
+					current_uid(), regs->ax, current->pid, current->tgid); 
+			strcat(log_ptr, temp_print);	
 			break;
 		case __NR_munmap:
-			printk(KERN_INFO MODULE_NAME 
-				"%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid,
-				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);
-		
+			sprintf(temp_print, "User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
+					current_uid(), regs->ax, current->pid, current->tgid); 
+			strcat(log_ptr, temp_print);	
 			break;
 		case __NR_open:
-			printk(KERN_INFO MODULE_NAME 
-				"%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid,
-				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);	
+			sprintf(temp_print, "User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
+					current_uid(), regs->ax, current->pid, current->tgid); 
+			strcat(log_ptr, temp_print);	
 			break;
 		case __NR_pipe:
-			printk(KERN_INFO MODULE_NAME 
-				"%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid,
-				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);			
+			sprintf(temp_print, "User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
+					current_uid(), regs->ax, current->pid, current->tgid); 
+			strcat(log_ptr, temp_print);	
 			break;
 		case __NR_read:
-			printk(KERN_INFO MODULE_NAME 
-				"%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid,
-				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);			
-
+			sprintf(temp_print, "User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
+					current_uid(), regs->ax, current->pid, current->tgid); 
+			strcat(log_ptr, temp_print);	
 			break;
 		case __NR_rmdir:
+			sprintf(temp_print, "User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
+					current_uid(), regs->ax, current->pid, current->tgid); 
+			strcat(log_ptr, temp_print);	
 			printk(KERN_INFO MODULE_NAME 
 				"%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid,
 				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);			
 
 			break;
 		case __NR_select:
-			printk(KERN_INFO MODULE_NAME 
-				"%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid,
-				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);			
-
+			sprintf(temp_print, "User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
+					current_uid(), regs->ax, current->pid, current->tgid); 
+			strcat(log_ptr, temp_print);	
 			break;
 		case __NR_stat:
-			printk(KERN_INFO MODULE_NAME 
-				"%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid,
-				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);			
-
+			sprintf(temp_print, "User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
+					current_uid(), regs->ax, current->pid, current->tgid); 
+			strcat(log_ptr, temp_print);	
 			break;
 		case __NR_fstat:
-			printk(KERN_INFO MODULE_NAME 
-				"%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid,
-				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);			
-
+			sprintf(temp_print, "User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
+					current_uid(), regs->ax, current->pid, current->tgid); 
+			strcat(log_ptr, temp_print);	
 			break;
 		case __NR_lstat:
-			printk(KERN_INFO MODULE_NAME 
-				"%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid,
-				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);			
-
+			sprintf(temp_print, "User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
+					current_uid(), regs->ax, current->pid, current->tgid); 
+			strcat(log_ptr, temp_print);	
 			break;
 		case __NR_wait4:
-			printk(KERN_INFO MODULE_NAME 
-				"%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid,
-				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);			
-
+			sprintf(temp_print, "User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
+					current_uid(), regs->ax, current->pid, current->tgid); 
+			strcat(log_ptr, temp_print);	
 			break;
 		case __NR_write:
-			printk(KERN_INFO MODULE_NAME 
-				"%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid,
-				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);			
-
+			sprintf(temp_print, "User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
+					current_uid(), regs->ax, current->pid, current->tgid); 
+			strcat(log_ptr, temp_print);	
 			break;
 		default:
 			break;
