@@ -8,8 +8,15 @@
 #include <syslog.h>
 #include <string.h>
 
-int main(void){
-	
+int main(int argc, char *argv[]){
+
+	//Before demonizing phase. Read command line parameters for config.
+	if(argc != 3)		//incorrect parameters print error
+	{
+		printf("ERROR: Incorrect parameters.\nUsage: deamon_interpos <input_file_to_be_read> <file_to_write_the_log>");
+		return -1;
+	}
+
 	pid_t pid, sid; 	//process and session id.
 
 	pid = fork();		//fork from parent
@@ -34,7 +41,10 @@ int main(void){
 	close(STDERR_FILENO);
 
 	//Do deamon specific initialized
-	
+	FILE *infile = fopen(argv[1], "r");
+	FILE *outfile = fopen(argv[2], "w");
+
+
 	//The main infinite loop
 	while(1){
 		//Do stuff
