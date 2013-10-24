@@ -149,13 +149,6 @@ static int sysmon_intercept_before(struct kprobe *kp, struct pt_regs *regs)
 			sprintf(temp_print, "User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
 					current_uid(), regs->ax, current->pid, current->tgid); 
 			strcat(log_ptr, temp_print);	
-//			sprintf(temp_print, "%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid, 
-//					(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);
-//			strcat(log_ptr, temp_print);								//check for overflow first TODO
-//			break;
-			printk(KERN_INFO MODULE_NAME 
-				"%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid,
-				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);
 			break;
 		case __NR_mmap:
 			sprintf(temp_print, "User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
@@ -186,10 +179,6 @@ static int sysmon_intercept_before(struct kprobe *kp, struct pt_regs *regs)
 			sprintf(temp_print, "User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
 					current_uid(), regs->ax, current->pid, current->tgid); 
 			strcat(log_ptr, temp_print);	
-			printk(KERN_INFO MODULE_NAME 
-				"%lu %d %d args 0x%lu '%s' %d\n", regs->ax, current->pid, current->tgid,
-				(uintptr_t)regs->di, (char*)regs->di, (int)regs->si);			
-
 			break;
 		case __NR_select:
 			sprintf(temp_print, "User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
