@@ -53,7 +53,7 @@ static int sysmon_intercept_before(struct kprobe *kp, struct pt_regs *regs)
 {
 	int ret = 0;
 	char temp_print[500] = {0};
-	printk(KERN_INFO "Value of toggle is %d.", toggle_monitored_int);
+	//printk(KERN_INFO "Value of toggle is %d.", toggle_monitored_int);
 	if (!toggle_monitored_int || (current_uid() != uid_monitored_int))
 		return 0;
 

@@ -17,6 +17,15 @@ int main(int argc, char *argv[]){
 		return -1;
 	}
 
+	//Open file handlers.
+	FILE *infile = fopen(argv[1], "r");
+	if(infile == NULL)
+		exit(EXIT_FAILURE);
+	
+	FILE *outfile = fopen(argv[2], "w");
+	if(outfile == NULL)
+		exit(EXIT_FAILURE);
+
 	pid_t pid, sid; 	//process and session id.
 
 	pid = fork();		//fork from parent
@@ -41,13 +50,17 @@ int main(int argc, char *argv[]){
 	close(STDERR_FILENO);
 
 	//Do deamon specific initialized
-	FILE *infile = fopen(argv[1], "r");
-	FILE *outfile = fopen(argv[2], "w");
 
+	char *line = NULL;
+	size_t len = 0;
+	ssize_t read;
 
 	//The main infinite loop
 	while(1){
+		if((read = getline(&line, &len, fp)) != -1)
+
 		//Do stuff
+
 		
 		sleep(30);	//sleep for some time to stop polling quickly
 	}
