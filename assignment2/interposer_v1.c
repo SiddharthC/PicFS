@@ -27,7 +27,7 @@
 #define	SYSMON_LOG_MAXSIZE		1048576
 #define UID_MONITORED_STRING_SIZE	10
 #define NUM_SYSCALL_MONITORED		30
-#define MAX_LOG_LINES			5000
+#define MAX_LOG_LINES			5
 #define MAX_LOG_LINE_SIZE		200
 
 MODULE_LICENSE("GPL");
@@ -271,47 +271,42 @@ int sysmon_toggle_read(char *buffer, char **buffer_location, off_t offset, int b
 int sysmon_log_read(char *buffer, char **buffer_location, off_t offset, int buffer_length, int *eof, void *data){
 
 	 int ret, i = 0;
-	 char *temp_log_buffer;
+	// char *temp_log_buffer;
 
          if(offset < 0)
                  return 0;
 
-	temp_log_buffer = (char *)kmalloc(sizeof(char) * MAX_LOG_LINES * MAX_LOG_LINE_LINES, GFP_KERNEL);
+	//temp_log_buffer = (char *)kmalloc(sizeof(char) * MAX_LOG_LINES * MAX_LOG_LINE_SIZE);
 
-	memset(temp_log_buffer, 0, (sizeof(char)*MAX_LOG_LINES*LAX_LOG_LINE_SIZE));
+//	if(temp_log_buffer)
+//	{
+//		printk(KERN_INFO "***********************Couldn't get mem**********************");
+//		return 0;
+//	}
+
+	memset(buffer, 0, (sizeof(char)*MAX_LOG_LINES*MAX_LOG_LINE_SIZE));
+	
+	printk(KERN_INFO "Got till if....\n");
 
 	if(log_cycle_flag)
 		i = log_offset;
 
 	for (; i< MAX_LOG_LINES; i++){
-		strcat(temp_log_buffer, log_ptr[i]);
-		strcat(templist, "\n");
+		strcat(buffer, log_ptr[i]);
 	}
 
-	if(log_cycle_fag){	
+	printk(KERN_INFO "Got after first for....\n");
+
+
+	if(log_cycle_flag){	
 		for(i=0; i<log_offset; i++){
-			strcat(temp_log_buffer, log_ptr[i]);
-			strcat(templist, "\n");
+			strcat(buffer, log_ptr[i]);
 		}
 	}
 			
-	 memcpy(buffer, temp_log_buffer, sizeof(char)*MAX_LOG_LINES8MAX_LOG_LINE_SIZE);
+//	 memcpy(buffer, temp_log_buffer, sizeof(char)*MAX_LOG_LINES * MAX_LOG_LINE_SIZE);
          ret = (sizeof(char)*MAX_LOG_LINES*MAX_LOG_LINE_SIZE);
          return ret;
-
-	
-	char *temp_log_buffer
-	
-	if(offset < 0)						//TODO cycle flag implementation
-		return 0;
-	if(offset > SIZE_OF_LOG_BUFFER)
-		offset = 0;					//default offset to 0 if exceed the max size
-	if((offset + buffer_length)> SIZE_OF_LOG_BUFFER)
-		buffer_length = SIZE_OF_LOG_BUFFER - offset;
-
-	memcpy(buffer, log_ptr+offset, buffer_length);
-
-	return buffer_length;
 }
 
 int sysmon_uid_write(struct file *file, const char *buffer, unsigned long count, void *data){
