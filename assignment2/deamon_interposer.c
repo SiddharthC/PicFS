@@ -57,7 +57,7 @@ int main(int argc, char *argv[]){
 
 	//The main infinite loop
 	while(1){
-		if((read = getline(&line, &len, fp)) != -1)
+		if((read = getline(&line, &len, infile)) != -1){}
 
 		//Do stuff
 
