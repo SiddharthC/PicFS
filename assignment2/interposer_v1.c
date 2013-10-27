@@ -34,7 +34,7 @@ MODULE_LICENSE("GPL");
 
 //Global variables
 int uid_monitored_int;
-char uid_monitored_string[UID_MONITORED_STRING_SIZE] = "" ;
+char uid_monitored_string[UID_MONITORED_STRING_SIZE] = "0\n" ;
 int toggle_monitored_int;
 
 //Proc File Entries
@@ -45,6 +45,7 @@ struct proc_dir_entry *sysmon_log_Entry;
 char log_ptr[MAX_LOG_LINES][MAX_LOG_LINE_SIZE];
 int log_offset;
 int log_cycle_flag;
+int looper;
 
 static struct kprobe probe[NUM_SYSCALL_MONITORED];
 
@@ -54,139 +55,60 @@ static struct kprobe probe[NUM_SYSCALL_MONITORED];
 static int sysmon_intercept_before(struct kprobe *kp, struct pt_regs *regs)
 {
 	int ret = 0;
+
+	//printk(KERN_INFO "----------------------------%d val monitored ------------------------------", uid_monitored_int);
+
+	//printk(KERN_INFO "----------------------------%d uid monitored ------------------------------", current_uid());
+
 	//printk(KERN_INFO "Value of toggle is %d.", toggle_monitored_int);
-	if (!toggle_monitored_int || (current_uid() != uid_monitored_int))
+	if ( !toggle_monitored_int || (current_uid() != uid_monitored_int))
 		return 0;
 
-	if(log_offset == MAX_LOG_LINES){
-		log_offset = 0;
-		log_cycle_flag = 1;
-	}
+	if(!looper++){
 
-	switch (regs->ax) {
+		if(log_offset == MAX_LOG_LINES){
+			log_offset = 0;
+			log_cycle_flag = 1;
+		}
+
+		switch (regs->ax) {
 		
-		case __NR_access:
-			sprintf(log_ptr[log_offset++], "%lu %d %d: User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
-					regs->ax, current->pid, current->tgid, current_uid(), regs->ax, current->pid, current->tgid); 
-			break;
-		case __NR_brk:
-			sprintf(log_ptr[log_offset++], "%lu %d %d: User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
-					regs->ax, current->pid, current->tgid, current_uid(), regs->ax, current->pid, current->tgid); 
-			break;
-		case __NR_chdir:
-			sprintf(log_ptr[log_offset++], "%lu %d %d: User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
-					regs->ax, current->pid, current->tgid, current_uid(), regs->ax, current->pid, current->tgid); 
-			break;
-		case __NR_chmod:
-			sprintf(log_ptr[log_offset++], "%lu %d %d: User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
-					regs->ax, current->pid, current->tgid, current_uid(), regs->ax, current->pid, current->tgid); 
-			break;
-		case __NR_clone:
-			sprintf(log_ptr[log_offset++], "%lu %d %d: User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
-					regs->ax, current->pid, current->tgid, current_uid(), regs->ax, current->pid, current->tgid); 
-			break;
-		case __NR_close:
-			sprintf(log_ptr[log_offset++], "%lu %d %d: User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
-					regs->ax, current->pid, current->tgid, current_uid(), regs->ax, current->pid, current->tgid); 
-			break;
-		case __NR_dup:
-			sprintf(log_ptr[log_offset++], "%lu %d %d: User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
-					regs->ax, current->pid, current->tgid, current_uid(), regs->ax, current->pid, current->tgid); 
-			break;
-		case __NR_dup2:
-			sprintf(log_ptr[log_offset++], "%lu %d %d: User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
-					regs->ax, current->pid, current->tgid, current_uid(), regs->ax, current->pid, current->tgid); 
-			break;
-		case __NR_execve:
-			sprintf(log_ptr[log_offset++], "%lu %d %d: User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
-					regs->ax, current->pid, current->tgid, current_uid(), regs->ax, current->pid, current->tgid); 
-			break;
-		case __NR_exit_group:
-			sprintf(log_ptr[log_offset++], "%lu %d %d: User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
-					regs->ax, current->pid, current->tgid, current_uid(), regs->ax, current->pid, current->tgid); 
-			break;
-		case __NR_fcntl:
-			sprintf(log_ptr[log_offset++], "%lu %d %d: User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
-					regs->ax, current->pid, current->tgid, current_uid(), regs->ax, current->pid, current->tgid); 
-			break;
-		case __NR_fork:
-			sprintf(log_ptr[log_offset++], "%lu %d %d: User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
-					regs->ax, current->pid, current->tgid, current_uid(), regs->ax, current->pid, current->tgid); 
-			break;
-		case __NR_getdents:
-			sprintf(log_ptr[log_offset++], "%lu %d %d: User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
-					regs->ax, current->pid, current->tgid, current_uid(), regs->ax, current->pid, current->tgid); 
-			break;
-		case __NR_getpid:
-			sprintf(log_ptr[log_offset++], "%lu %d %d: User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
-					regs->ax, current->pid, current->tgid, current_uid(), regs->ax, current->pid, current->tgid); 
-			break;
-		case __NR_gettid:
-			sprintf(log_ptr[log_offset++], "%lu %d %d: User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
-					regs->ax, current->pid, current->tgid, current_uid(), regs->ax, current->pid, current->tgid); 
-			break;
-		case __NR_ioctl:
-			sprintf(log_ptr[log_offset++], "%lu %d %d: User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
-					regs->ax, current->pid, current->tgid, current_uid(), regs->ax, current->pid, current->tgid); 
-			break;
-		case __NR_lseek:
-			sprintf(log_ptr[log_offset++], "%lu %d %d: User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
-					regs->ax, current->pid, current->tgid, current_uid(), regs->ax, current->pid, current->tgid); 
-			break;
-		case __NR_mkdir:
-			sprintf(log_ptr[log_offset++], "%lu %d %d: User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
-					regs->ax, current->pid, current->tgid, current_uid(), regs->ax, current->pid, current->tgid); 
-			break;
-		case __NR_mmap:
-			sprintf(log_ptr[log_offset++], "%lu %d %d: User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
-					regs->ax, current->pid, current->tgid, current_uid(), regs->ax, current->pid, current->tgid); 
-			break;
-		case __NR_munmap:
-			sprintf(log_ptr[log_offset++], "%lu %d %d: User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
-					regs->ax, current->pid, current->tgid, current_uid(), regs->ax, current->pid, current->tgid); 
-			break;
-		case __NR_open:
-			sprintf(log_ptr[log_offset++], "%lu %d %d: User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
-					regs->ax, current->pid, current->tgid, current_uid(), regs->ax, current->pid, current->tgid); 
-			break;
-		case __NR_pipe:
-			sprintf(log_ptr[log_offset++], "%lu %d %d: User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
-					regs->ax, current->pid, current->tgid, current_uid(), regs->ax, current->pid, current->tgid); 
-			break;
-		case __NR_read:
-			sprintf(log_ptr[log_offset++], "%lu %d %d: User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
-					regs->ax, current->pid, current->tgid, current_uid(), regs->ax, current->pid, current->tgid); 
-			break;
-		case __NR_rmdir:
-			sprintf(log_ptr[log_offset++], "%lu %d %d: User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
-					regs->ax, current->pid, current->tgid, current_uid(), regs->ax, current->pid, current->tgid); 
-			break;
-		case __NR_select:
-			sprintf(log_ptr[log_offset++], "%lu %d %d: User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
-					regs->ax, current->pid, current->tgid, current_uid(), regs->ax, current->pid, current->tgid); 
-			break;
-		case __NR_stat:
-			sprintf(log_ptr[log_offset++], "%lu %d %d: User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
-					regs->ax, current->pid, current->tgid, current_uid(), regs->ax, current->pid, current->tgid); 
-			break;
-		case __NR_fstat:
-			sprintf(log_ptr[log_offset++], "%lu %d %d: User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
-					regs->ax, current->pid, current->tgid, current_uid(), regs->ax, current->pid, current->tgid); 
-			break;
-		case __NR_lstat:
-			sprintf(log_ptr[log_offset++], "%lu %d %d: User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
-					regs->ax, current->pid, current->tgid, current_uid(), regs->ax, current->pid, current->tgid); 
-			break;
-		case __NR_wait4:
-			sprintf(log_ptr[log_offset++], "%lu %d %d: User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
-					regs->ax, current->pid, current->tgid, current_uid(), regs->ax, current->pid, current->tgid); 
-			break;
-		case __NR_write:
-			sprintf(log_ptr[log_offset++], "%lu %d %d: User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
-					regs->ax, current->pid, current->tgid, current_uid(), regs->ax, current->pid, current->tgid); 
-			break;
-		default:
-			break;
+			case __NR_access:
+			case __NR_brk:
+			case __NR_chdir:
+			case __NR_chmod:
+			case __NR_clone:
+			case __NR_close:
+			case __NR_dup:
+			case __NR_dup2:
+			case __NR_execve:
+			case __NR_exit_group:
+			case __NR_fcntl:
+			case __NR_fork:
+			case __NR_getdents:
+			case __NR_getpid:
+			case __NR_gettid:
+			case __NR_ioctl:
+			case __NR_lseek:
+			case __NR_mkdir:
+			case __NR_mmap:
+			case __NR_munmap:
+			case __NR_open:
+			case __NR_pipe:
+			case __NR_read:
+			case __NR_rmdir:
+			case __NR_select:
+			case __NR_stat:
+			case __NR_fstat:
+			case __NR_lstat:
+			case __NR_wait4:
+			case __NR_write:
+				sprintf(log_ptr[log_offset++], "%lu %d %d: User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
+							regs->ax, current->pid, current->tgid, current_uid(), regs->ax, current->pid, current->tgid); 
+				break;
+			default:
+				break;
+		}
 	}
 
 	return ret;
@@ -195,6 +117,12 @@ static int sysmon_intercept_before(struct kprobe *kp, struct pt_regs *regs)
 static void sysmon_intercept_after(struct kprobe *kp, struct pt_regs *regs, unsigned long flags)
 {
 	    /* Here you could capture the return code if you wanted. */
+	if ( !toggle_monitored_int || (current_uid() != uid_monitored_int))
+		return;
+
+	looper--;
+
+	return;
 }
 
 int probe_creator(void){
@@ -341,7 +269,8 @@ int sysmon_uid_write(struct file *file, const char *buffer, unsigned long count,
 		uid_monitored_string[i] = tempBuffer[i];
 	}
 
-	dummy = kstrtoint(uid_monitored_string, i, &uid_monitored_int);
+	dummy = kstrtoint(uid_monitored_string, 10, &uid_monitored_int);
+	printk(KERN_INFO "@@@@@@@@@@@@@@@@@@@@@@@The int converted is %d", uid_monitored_int);
 
 	uid_monitored_string[i] = '\n';
 	uid_monitored_string[++i] = '\0';
