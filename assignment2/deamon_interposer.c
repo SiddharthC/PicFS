@@ -10,22 +10,27 @@
 
 int main(int argc, char *argv[]){
 
+	char *line = NULL;
+	size_t len = 0;
+	ssize_t read;
+	char read_flag=0;
+	FILE *infile, *outfile, *log_file;
+
+	char tempBuffer[50000];
+
+
 	//Before demonizing phase. Read command line parameters for config.
 	if(argc != 3)		//incorrect parameters print error
 	{
-		printf("ERROR: Incorrect parameters.\nUsage: deamon_interpos <input_file_to_be_read> <file_to_write_the_log>");
+		printf("ERROR: Incorrect parameters.\nUsage: deamon_interpos <input_file_to_be_read> <file_to_write_the_log>\n");
 		return -1;
 	}
 
 	//Open file handlers.
-	FILE *infile = fopen(argv[1], "r");
+	infile = fopen(argv[1], "w+");
 	if(infile == NULL)
 		exit(EXIT_FAILURE);
 	
-	FILE *outfile = fopen(argv[2], "w");
-	if(outfile == NULL)
-		exit(EXIT_FAILURE);
-
 	pid_t pid, sid; 	//process and session id.
 
 	pid = fork();		//fork from parent
@@ -51,18 +56,35 @@ int main(int argc, char *argv[]){
 
 	//Do deamon specific initialized
 
-	char *line = NULL;
-	size_t len = 0;
-	ssize_t read;
-
 	//The main infinite loop
 	while(1){
-		if((read = getline(&line, &len, infile)) != -1){}
+	
+		//printf("Some print......\n");
+		read_flag = fgetc(infile);
+		rewind(infile);
+
+		if(read_flag == '1'){
+
+			fputc('0', infile);
+			rewind(infile);
+
+			outfile = fopen(argv[2], "w");
+			if(outfile == NULL)
+				exit(EXIT_FAILURE);
+
+			log_file = fopen("/proc/sysmon_log", "r");
+			
+			fread(tempBuffer, 1, 50000, log_file);
+			fwrite(tempBuffer, 1, 50000, outfile);
+
+			fclose(log_file);
+
+			fprintf(outfile, "Testing.....\n"); //TODO do all the log printing
+			fclose(outfile);
+		}
 
 		//Do stuff
-
-		
-		sleep(30);	//sleep for some time to stop polling quickly
+		sleep(10);	//sleep for some time to stop polling quickly
 	}
 	exit(EXIT_SUCCESS);
 }

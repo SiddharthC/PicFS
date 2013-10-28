@@ -15,8 +15,11 @@
 #include <linux/syscalls.h>
 #include <asm/segment.h>
 #include <linux/buffer_head.h>
+#include <linux/mutex.h>
+#include <linux/vmalloc.h>
+#include <linux/time.h>
 
-#define MODULE_NAME "interposer_beta"
+#define MODULE_NAME 			"interposer_beta"
 
 #define sysmon_uid 			"sysmon_uid"
 #define sysmon_toggle 			"sysmon_toggle"
@@ -27,10 +30,16 @@
 #define	SYSMON_LOG_MAXSIZE		1048576
 #define UID_MONITORED_STRING_SIZE	10
 #define NUM_SYSCALL_MONITORED		30
-#define MAX_LOG_LINES			5
-#define MAX_LOG_LINE_SIZE		200
+
+#define MAX_LOG_LINES			40
+#define MAX_LOG_LINE_SIZE		70
+
+#define THRESHOLD			1000
+#define TIMEOUT				300000000000
 
 MODULE_LICENSE("GPL");
+
+//TODO on each read return 40 lines only
 
 //Global variables
 int uid_monitored_int;
@@ -45,26 +54,55 @@ struct proc_dir_entry *sysmon_log_Entry;
 char log_ptr[MAX_LOG_LINES][MAX_LOG_LINE_SIZE];
 int log_offset;
 int log_cycle_flag;
-int looper;
+//int num_calls;
+//char **log_ptr2
+
+
+
+typedef struct _CallNode{
+	unsigned int count;
+	unsigned long total_count;
+	int flag;
+	char recent_log[MAX_LOG_LINE_SIZE];
+	struct timespec ts;
+}CallNode;
+
+CallNode callNodeArray[30];
 
 static struct kprobe probe[NUM_SYSCALL_MONITORED];
 
 //*************************************************************************************************************//
 // Function Definitions
 
+void hash_table_printer(void){
+	
+	int i;
+
+	for(i=0; i<30; i++){
+		printk(KERN_INFO "Node index -- %d\n", i);
+		printk(KERN_INFO "Node.count -- %u\n", callNodeArray[i].count);	
+		printk(KERN_INFO "Node.total_count -- %lu\n", callNodeArray[i].total_count);
+		printk(KERN_INFO "Node.flag -- %d\n", callNodeArray[i].flag);
+		printk(KERN_INFO "Node.recent_log -- %s\n", callNodeArray[i].recent_log);
+	}
+}
+
 static int sysmon_intercept_before(struct kprobe *kp, struct pt_regs *regs)
 {
 	int ret = 0;
+	int hash_index = -1;
+
+	struct timespec tempts, diffts;
+
+	//if(!num_calls++)
+	//	printk(KERN_INFO "SOMETHING %lu", regs->ax);
 
 	//printk(KERN_INFO "----------------------------%d val monitored ------------------------------", uid_monitored_int);
-
 	//printk(KERN_INFO "----------------------------%d uid monitored ------------------------------", current_uid());
-
 	//printk(KERN_INFO "Value of toggle is %d.", toggle_monitored_int);
+	
 	if ( !toggle_monitored_int || (current_uid() != uid_monitored_int))
 		return 0;
-
-	if(!looper++){
 
 		if(log_offset == MAX_LOG_LINES){
 			log_offset = 0;
@@ -74,60 +112,135 @@ static int sysmon_intercept_before(struct kprobe *kp, struct pt_regs *regs)
 		switch (regs->ax) {
 		
 			case __NR_access:
+				hash_index = 0;
+				break;
 			case __NR_brk:
+				hash_index = 1;
+				break;
 			case __NR_chdir:
+				hash_index = 2;
+				break;
 			case __NR_chmod:
+				hash_index = 3;
+				break;
 			case __NR_clone:
+				hash_index = 4;
+				break;
 			case __NR_close:
+				hash_index = 5;
+				break;
 			case __NR_dup:
+				hash_index = 6;
+				break;
 			case __NR_dup2:
+				hash_index = 7;
+				break;
 			case __NR_execve:
+				hash_index = 8;
+				break;
 			case __NR_exit_group:
+				hash_index = 9;
+				break;		
 			case __NR_fcntl:
+				hash_index = 10;
+				break;		
 			case __NR_fork:
+				hash_index = 11;
+				break;		
 			case __NR_getdents:
+				hash_index = 12;
+				break;	
 			case __NR_getpid:
+				hash_index = 13;
+				break;
 			case __NR_gettid:
+				hash_index = 14;
+				break;
 			case __NR_ioctl:
+				hash_index = 15;
+				break;
 			case __NR_lseek:
+				hash_index = 16;
+				break;
 			case __NR_mkdir:
+				hash_index = 17;
+				break;
 			case __NR_mmap:
+				hash_index = 18;
+				break;
 			case __NR_munmap:
+				hash_index = 19;
+				break;
 			case __NR_open:
+				hash_index = 20;
+				break;
 			case __NR_pipe:
+				hash_index = 21;
+				break;
 			case __NR_read:
+				hash_index = 22;
+				break;
 			case __NR_rmdir:
+				hash_index = 23;
+				break;
 			case __NR_select:
+				hash_index = 24;
+				break;
 			case __NR_stat:
+				hash_index = 25;
+				break;
 			case __NR_fstat:
+				hash_index = 26;
+				break;
 			case __NR_lstat:
+				hash_index = 27;
+				break;
 			case __NR_wait4:
+				hash_index = 28;
+				break;
 			case __NR_write:
-				sprintf(log_ptr[log_offset++], "%lu %d %d: User --> %d fired monitored system call --> %lu. Current pid --> %d. Current tgid --> %d\n",
-							regs->ax, current->pid, current->tgid, current_uid(), regs->ax, current->pid, current->tgid); 
+				hash_index = 29;
 				break;
 			default:
-				break;
+				return 0;
 		}
-	}
 
-	return ret;
+		callNodeArray[hash_index].total_count++;
+
+		if(callNodeArray[hash_index].flag){
+			getnstimeofday(&tempts);
+			diffts = timespec_sub(tempts, callNodeArray[hash_index].ts);
+
+			if(timespec_to_ns(&diffts) > TIMEOUT){
+				callNodeArray[hash_index].flag = 0;
+				callNodeArray[hash_index].count	= 0;
+			}
+		}
+
+		if(callNodeArray[hash_index].count++ > THRESHOLD){
+			callNodeArray[hash_index].flag = 1;
+			getnstimeofday(&callNodeArray[hash_index].ts);
+		}
+		else{
+			sprintf(log_ptr[log_offset++], "%lu %d %d| User: %d Syscall: %lu PID: %d TGID: %d\n", 
+				regs->ax, current->pid, current->tgid, current_uid(), regs->ax, current->pid, current->tgid);
+		}
+
+		sprintf(callNodeArray[hash_index].recent_log, "%lu %d %d| User: %d Syscall: %lu PID: %d TGID: %d\n", 
+			regs->ax, current->pid, current->tgid, current_uid(), regs->ax, current->pid, current->tgid);
+
+		return ret;
 }
 
 static void sysmon_intercept_after(struct kprobe *kp, struct pt_regs *regs, unsigned long flags)
 {
-	    /* Here you could capture the return code if you wanted. */
-	if ( !toggle_monitored_int || (current_uid() != uid_monitored_int))
-		return;
-
-	looper--;
-
-	return;
+	/* Here you could capture the return code if you wanted. */
 }
 
 int probe_creator(void){
 	int i;
 
+	probe[0].symbol_name = "sys_write";
 	probe[1].symbol_name = "sys_access";
 	probe[2].symbol_name = "sys_brk";
 	probe[3].symbol_name = "sys_chdir";
@@ -157,7 +270,6 @@ int probe_creator(void){
 	probe[27].symbol_name = "sys_fstat";
 	probe[28].symbol_name = "sys_lstat";
 	probe[29].symbol_name = "sys_wait4";
-	probe[0].symbol_name = "sys_write";
 
 	for(i=0; i<NUM_SYSCALL_MONITORED; i++)
 	{
@@ -174,13 +286,12 @@ int probe_creator(void){
 int sysmon_uid_read(char *buffer, char **buffer_location, off_t offset, int buffer_lenght, int *eof, void *data){
 
 	memcpy(buffer, uid_monitored_string, UID_MONITORED_STRING_SIZE);
-
         return UID_MONITORED_STRING_SIZE;
 }
 
 int sysmon_toggle_read(char *buffer, char **buffer_location, off_t offset, int buffer_lenght, int *eof, void *data){
 
-	if(offset < 0)							// offset should be checked for negative value. This was a bug earlier
+	if(offset < 0)		// offset should be checked for negative value. This was a bug earlier
 		return 0;
 
 	if(toggle_monitored_int){
@@ -198,23 +309,14 @@ int sysmon_toggle_read(char *buffer, char **buffer_location, off_t offset, int b
 
 int sysmon_log_read(char *buffer, char **buffer_location, off_t offset, int buffer_length, int *eof, void *data){
 
-	 int ret, i = 0;
-	// char *temp_log_buffer;
+	int ret, i = 0;
 
-         if(offset < 0)
-                 return 0;
+       	if(offset < 0)
+		return 0;
 
-	//temp_log_buffer = (char *)kmalloc(sizeof(char) * MAX_LOG_LINES * MAX_LOG_LINE_SIZE);
-
-//	if(temp_log_buffer)
-//	{
-//		printk(KERN_INFO "***********************Couldn't get mem**********************");
-//		return 0;
-//	}
-
+	printk(KERN_INFO "********************************Buffer length %d***********************\n", buffer_length);
+	//The buffer length is always 3072
 	memset(buffer, 0, (sizeof(char)*MAX_LOG_LINES*MAX_LOG_LINE_SIZE));
-	
-	printk(KERN_INFO "Got till if....\n");
 
 	if(log_cycle_flag)
 		i = log_offset;
@@ -223,16 +325,12 @@ int sysmon_log_read(char *buffer, char **buffer_location, off_t offset, int buff
 		strcat(buffer, log_ptr[i]);
 	}
 
-	printk(KERN_INFO "Got after first for....\n");
-
-
 	if(log_cycle_flag){	
 		for(i=0; i<log_offset; i++){
 			strcat(buffer, log_ptr[i]);
 		}
 	}
 			
-//	 memcpy(buffer, temp_log_buffer, sizeof(char)*MAX_LOG_LINES * MAX_LOG_LINE_SIZE);
          ret = (sizeof(char)*MAX_LOG_LINES*MAX_LOG_LINE_SIZE);
          return ret;
 }
@@ -270,7 +368,6 @@ int sysmon_uid_write(struct file *file, const char *buffer, unsigned long count,
 	}
 
 	dummy = kstrtoint(uid_monitored_string, 10, &uid_monitored_int);
-	printk(KERN_INFO "@@@@@@@@@@@@@@@@@@@@@@@The int converted is %d", uid_monitored_int);
 
 	uid_monitored_string[i] = '\n';
 	uid_monitored_string[++i] = '\0';
@@ -349,6 +446,15 @@ int proc_creator(void){
 
 int init_module()
 {
+//	int i;
+
+//	log_ptr2 = (char **)vmalloc(MAX_LOG_LINES*(sizeof(char *)));
+
+//	for(i=0; i<MAX_LOG_LINES; i++){
+//		log_ptr2[i] = (char *)vmalloc(MAX_LOG_LINE_SIZE * (sizeof(char)));
+//		memset(log_ptr2[i], 0, MAX_LOG_LINE_SIZE* sizeof(char));
+//	}
+
 	proc_creator();
 	probe_creator();
 	return 0;
@@ -357,6 +463,12 @@ int init_module()
 void cleanup_module()
 {
 	int i;
+//	printk(KERN_INFO "&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&%d", num_calls);
+
+//	for(i=0; i<MAX_LOG_LINES; i++)
+//		vfree(log_ptr2[i]);
+
+//	vfree(log_ptr2);
 
 	for(i=0; i<NUM_SYSCALL_MONITORED; i++)
 		unregister_kprobe(&probe[i]);	
