@@ -31,7 +31,7 @@
 #define UID_MONITORED_STRING_SIZE	10
 #define NUM_SYSCALL_MONITORED		30
 
-#define MAX_LOG_LINES			40
+#define MAX_LOG_LINES			40000
 #define MAX_LOG_LINE_SIZE		70
 
 #define THRESHOLD			1000
@@ -53,11 +53,10 @@ struct proc_dir_entry *sysmon_log_Entry;
 
 char log_ptr[MAX_LOG_LINES][MAX_LOG_LINE_SIZE];
 int log_offset;
+int log_offset_read=-1;
 int log_cycle_flag;
-//int num_calls;
-//char **log_ptr2
 
-
+int lines_returnable = 3072/MAX_LOG_LINE_SIZE;
 
 typedef struct _CallNode{
 	unsigned int count;
@@ -94,13 +93,8 @@ static int sysmon_intercept_before(struct kprobe *kp, struct pt_regs *regs)
 
 	struct timespec tempts, diffts;
 
-	//if(!num_calls++)
-	//	printk(KERN_INFO "SOMETHING %lu", regs->ax);
+	char temp_log[MAX_LOG_LINE_SIZE];
 
-	//printk(KERN_INFO "----------------------------%d val monitored ------------------------------", uid_monitored_int);
-	//printk(KERN_INFO "----------------------------%d uid monitored ------------------------------", current_uid());
-	//printk(KERN_INFO "Value of toggle is %d.", toggle_monitored_int);
-	
 	if ( !toggle_monitored_int || (current_uid() != uid_monitored_int))
 		return 0;
 
@@ -112,6 +106,8 @@ static int sysmon_intercept_before(struct kprobe *kp, struct pt_regs *regs)
 		switch (regs->ax) {
 		
 			case __NR_access:
+//				sprintf(temp_log, "%lu %d %d| User: %d Syscall: %lu PID: %d TGID: %d\n", 
+//					regs->ax, current->pid, current->tgid, current_uid(), regs->ax, current->pid, current->tgid);
 				hash_index = 0;
 				break;
 			case __NR_brk:
@@ -222,8 +218,9 @@ static int sysmon_intercept_before(struct kprobe *kp, struct pt_regs *regs)
 			getnstimeofday(&callNodeArray[hash_index].ts);
 		}
 		else{
-			sprintf(log_ptr[log_offset++], "%lu %d %d| User: %d Syscall: %lu PID: %d TGID: %d\n", 
+			sprintf(log_ptr[log_offset++] , "%lu %d %d| User: %d Syscall: %lu PID: %d TGID: %d\n", 
 				regs->ax, current->pid, current->tgid, current_uid(), regs->ax, current->pid, current->tgid);
+			
 		}
 
 		sprintf(callNodeArray[hash_index].recent_log, "%lu %d %d| User: %d Syscall: %lu PID: %d TGID: %d\n", 
@@ -309,30 +306,49 @@ int sysmon_toggle_read(char *buffer, char **buffer_location, off_t offset, int b
 
 int sysmon_log_read(char *buffer, char **buffer_location, off_t offset, int buffer_length, int *eof, void *data){
 
-	int ret, i = 0;
+	int ret, i = 0, log_sent=1;
 
        	if(offset < 0)
 		return 0;
 
-	printk(KERN_INFO "********************************Buffer length %d***********************\n", buffer_length);
+	if(log_offset_read == -1){
+		if(log_cycle_flag)
+			log_offset_read = log_offset;
+		else
+			log_offset_read = 0;
+	}
+
+	if(log_offset_read == log_offset){
+		log_offset_read = -1;
+		return 0;
+	}
+
+	//printk(KERN_INFO "********************************Buffer length %d***********************\n", buffer_length);
 	//The buffer length is always 3072
-	memset(buffer, 0, (sizeof(char)*MAX_LOG_LINES*MAX_LOG_LINE_SIZE));
+	memset(buffer, 0, buffer_length);
 
-	if(log_cycle_flag)
-		i = log_offset;
-
-	for (; i< MAX_LOG_LINES; i++){
+	for (i=log_offset_read; i< MAX_LOG_LINES; i++){
+		if((log_sent++ > lines_returnable))
+			break;
+			
 		strcat(buffer, log_ptr[i]);
 	}
 
 	if(log_cycle_flag){	
 		for(i=0; i<log_offset; i++){
+			if(log_sent++ > lines_returnable)
+				break;
 			strcat(buffer, log_ptr[i]);
 		}
 	}
+
+	log_offset_read += log_sent;
+	if(log_offset_read > MAX_LOG_LINES){
+		log_offset_read -= MAX_LOG_LINES;
+	}
 			
-         ret = (sizeof(char)*MAX_LOG_LINES*MAX_LOG_LINE_SIZE);
-         return ret;
+        ret = buffer_length;
+        return ret;
 }
 
 int sysmon_uid_write(struct file *file, const char *buffer, unsigned long count, void *data){
@@ -446,15 +462,6 @@ int proc_creator(void){
 
 int init_module()
 {
-//	int i;
-
-//	log_ptr2 = (char **)vmalloc(MAX_LOG_LINES*(sizeof(char *)));
-
-//	for(i=0; i<MAX_LOG_LINES; i++){
-//		log_ptr2[i] = (char *)vmalloc(MAX_LOG_LINE_SIZE * (sizeof(char)));
-//		memset(log_ptr2[i], 0, MAX_LOG_LINE_SIZE* sizeof(char));
-//	}
-
 	proc_creator();
 	probe_creator();
 	return 0;
@@ -463,13 +470,6 @@ int init_module()
 void cleanup_module()
 {
 	int i;
-//	printk(KERN_INFO "&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&%d", num_calls);
-
-//	for(i=0; i<MAX_LOG_LINES; i++)
-//		vfree(log_ptr2[i]);
-
-//	vfree(log_ptr2);
-
 	for(i=0; i<NUM_SYSCALL_MONITORED; i++)
 		unregister_kprobe(&probe[i]);	
 	remove_proc_entry(sysmon_uid, NULL);

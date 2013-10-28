@@ -74,12 +74,12 @@ int main(int argc, char *argv[]){
 
 			log_file = fopen("/proc/sysmon_log", "r");
 			
-			fread(tempBuffer, 1, 50000, log_file);
-			fwrite(tempBuffer, 1, 50000, outfile);
+			fread(tempBuffer, 1, 49000, log_file);
+			fwrite(tempBuffer, 1, 49000, outfile);
 
 			fclose(log_file);
 
-			fprintf(outfile, "Testing.....\n"); //TODO do all the log printing
+			//fprintf(outfile, "Testing.....\n"); //TODO do all the log printing
 			fclose(outfile);
 		}
 
