@@ -2,7 +2,7 @@
 
 i=0
 
-while [ $i -lt 20 ]
+while [ $i -lt 10000 ]
 do
 	strace -o >(cat >>datafile) -T mkdir temp;
 	strace -o >(cat >>datafile) -T cat temp;

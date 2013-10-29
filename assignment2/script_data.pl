@@ -21,13 +21,12 @@ while($line = <$fh>){
 	}
 	if($line =~ m/(?<=<)([\w\.]*)/){
 		$temp2 = $1;
-		print "$temp2\n";
 	}
 	push(@{$syscallHash{$temp}}, $temp2);
 }
 
 foreach my $key (sort keys(%syscallHash)){
-	print "Systemcall: $key | Times: " ;
+	printf ("Systemcall: %-10s | Times: ", $key) ;
 	foreach (@{$syscallHash{$key}}){
 		$avg += $_;
 		$count++;

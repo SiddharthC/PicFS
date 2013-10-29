@@ -61,6 +61,7 @@ int log_cycle_flag;
 int lines_returnable;
 int log_looped;
 int num_calls;
+int reset;
 char mybuffer[100000];
 
 typedef struct _CallNode{
@@ -75,10 +76,10 @@ CallNode callNodeArray[30];
 
 static struct kprobe probe[NUM_SYSCALL_MONITORED];
 
+
+
 //*************************************************************************************************************//
 // Function Definitions
-
-
 int sysmon_flag_read(char *buffer, char **buffer_location, off_t offset, int buffer_length, int *eof, void *data){
 
 	int i;
@@ -89,19 +90,19 @@ int sysmon_flag_read(char *buffer, char **buffer_location, off_t offset, int buf
 	
 	memset(buffer, 0, buffer_length);
 	for(i=0; i<30; i++){
-		sprintf(tempBuffer, "Node index -- %2d | ", i);
+		sprintf(tempBuffer, "Node INDX: %2d | ", i);
 		strcat(mybuffer, tempBuffer);
 		memset(tempBuffer, 0, 100);
-		sprintf(tempBuffer, "Node.count -- %4u | ", callNodeArray[i].count);	
+		sprintf(tempBuffer, "Count: %4u | ", callNodeArray[i].count);	
 		strcat(mybuffer, tempBuffer);
 		memset(tempBuffer, 0, 100);
-		sprintf(tempBuffer,"Node.total_count -- %6lu | ", callNodeArray[i].total_count);
+		sprintf(tempBuffer,"Total: %6lu | ", callNodeArray[i].total_count);
 		strcat(mybuffer, tempBuffer);
 		memset(tempBuffer, 0, 100);
-		sprintf(tempBuffer, "Node.flag -- %d\n", callNodeArray[i].flag);
+		sprintf(tempBuffer, "Flag: %d | ", callNodeArray[i].flag);
 		strcat(mybuffer, tempBuffer);
 		memset(tempBuffer, 0, 100);
-		sprintf(tempBuffer, "Node.recent_log -- %s\n", callNodeArray[i].recent_log);
+		sprintf(tempBuffer, "RecentLog: %s\n", callNodeArray[i].recent_log);
 		strcat(mybuffer, tempBuffer);
 		memset(tempBuffer, 0, 100);
 	}
@@ -140,7 +141,7 @@ static int sysmon_intercept_before(struct kprobe *kp, struct pt_regs *regs)
 	ts /= 60;
 	h = ts%24;
 
-	switch (regs->ax) {   //CHANGE MICRO SECOND TO 6 DIGITS AND REG->AX TO 3 DIGITS
+	switch (regs->ax) {
 		
 		case __NR_access:
 			sprintf(temp_log, "%02d:%02d:%02d:%06d|access U: %04d S: %03lu PID: %05d TGID: %05d\n", 
@@ -404,8 +405,13 @@ int sysmon_log_read(char *buffer, char **buffer_location, off_t offset, int buff
 			num_calls, log_offset_read, log_offset, log_cycle_flag);
 
 
-       	if(offset < 0 || offset == buffer_length)
+       	if(offset < 0 || offset == buffer_length) {
+		if(reset) {
+			reset = 0;
+			*eof = 1;
+		}
 		return 0;
+	}
 
 	if(log_offset_read == -1){
 		if(log_cycle_flag)
@@ -417,8 +423,8 @@ int sysmon_log_read(char *buffer, char **buffer_location, off_t offset, int buff
 	if(log_offset_read >= log_offset && (!log_cycle_flag||(log_cycle_flag && log_looped))){
 		log_looped = 0;
 		log_offset_read = -1;
-		printk("!!!!!!!!! RESET\n");
-		*eof = 1;
+		printk("!!!!!!!!! RESET !!!!!!!!!\n");
+		reset = 1;
 		return 0;
 	}
 
@@ -471,8 +477,6 @@ int sysmon_log_read(char *buffer, char **buffer_location, off_t offset, int buff
 		log_offset_read -= MAX_LOG_LINES;
 	}
 	
-//	*eof = 1;
-
 	printk("########## Num_Sent: %d ###############\n", logs_sent);
 
         ret = buffer_length;
