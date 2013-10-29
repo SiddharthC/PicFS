@@ -34,7 +34,7 @@ int main(int argc, char *argv[]){
 	pid_t pid, sid; 	//process and session id.
 
 	pid = fork();		//fork from parent
-				//NOTE: Should double fork to avoid zomnies
+				//NOTE: Should double fork to avoid zombies
 	if(pid > 0)
 		exit(EXIT_FAILURE);
 	if(pid < 0)		//Got a good pid so exit the parent
