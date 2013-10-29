@@ -58,7 +58,7 @@ int log_offset;
 int log_offset_read=-1;
 int log_cycle_flag;
 
-int lines_returnable = 3072/MAX_LOG_LINE_SIZE;
+int lines_returnable;
 int log_looped;
 int num_calls;
 char mybuffer[100000];
@@ -427,6 +427,7 @@ int sysmon_log_read(char *buffer, char **buffer_location, off_t offset, int buff
 
 
 	//DETERMINE LINES_RETURNABLE
+	lines_returnable = 3072/MAX_LOG_LINE_SIZE;
 	if(log_cycle_flag) {
 		if(log_looped) {
 			if((temp = log_offset - log_offset_read) < lines_returnable)
