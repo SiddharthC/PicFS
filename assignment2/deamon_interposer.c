@@ -2,16 +2,17 @@
 #include <sys/stat.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <fcntl.h>
+//#include <fcntl.h>
 #include <errno.h>
 #include <unistd.h>
 #include <syslog.h>
 #include <string.h>
+#include <sys/inotify.h>
 
 int main(int argc, char *argv[]){
 
 	char read_flag=0;
-	FILE *infile, *outfile, *log_file;
+	FILE *infile=NULL, *outfile=NULL, *log_file=NULL;
 	char tempBuffer[5000000]="";
 	char tempBuffer2[4000]="";
 	int i, temp;
@@ -24,11 +25,11 @@ int main(int argc, char *argv[]){
 	}
 	
 	//Open file handlers.
-	infile = fopen(argv[1], "w+");
+	infile = fopen("/root/linux/assignment2/infile.txt", "w+");
 	if(infile == NULL)
 		exit(EXIT_FAILURE);
-	
-	outfile = fopen(argv[2], "w");
+
+	outfile = fopen("outfile.txt", "w");
 	if(outfile == NULL)
 		exit(EXIT_FAILURE);
 
@@ -52,15 +53,14 @@ int main(int argc, char *argv[]){
 	
 
 	//close standard files not accessible so closed
-	//close(STDIN_FILENO);	 
-	//close(STDOUT_FILENO);
-	//close(STDERR_FILENO);
+	close(STDIN_FILENO);	 
+	close(STDOUT_FILENO);
+	close(STDERR_FILENO);
 
 
 
 //**********************************************************************//
 	while(1){
-
 		read_flag = fgetc(infile);
 		rewind(infile);
 
@@ -72,11 +72,14 @@ int main(int argc, char *argv[]){
 			for (i=0; i<1000; i++){
 
 				log_file = fopen("/proc/sysmon_log", "r");
-				if(!fread(tempBuffer2, 1, 4000, log_file))
-					break;
+				if(log_file == NULL)
+					exit(EXIT_FAILURE);
+				fread(tempBuffer2, 1, 4000, log_file);
 				strcat(tempBuffer, tempBuffer2);
-				memset(tempBuffer2, 0, 4000);
 				fclose(log_file);
+				if(tempBuffer2[0] == '\0')
+					break;
+				memset(tempBuffer2, 0, 4000);
 			}
 			fwrite(tempBuffer, 1, 5000000, outfile);
 
@@ -86,9 +89,10 @@ int main(int argc, char *argv[]){
 		}
 
 		sleep(5);
+
 	}
 
-	fclose(outfile);
 	fclose(infile);
+	fclose(outfile);
 	exit(EXIT_SUCCESS);
 }
