@@ -9,6 +9,8 @@ my %syscallHash;
 my $temp;
 my $temp2;
 my $line;
+my $avg=0;
+my $count=0;
 
 open ($fh, "<", "datafile") or die "Can't open datafile\n";
 
@@ -27,7 +29,11 @@ while($line = <$fh>){
 foreach my $key (sort keys(%syscallHash)){
 	print "Systemcall: $key | Times: " ;
 	foreach (@{$syscallHash{$key}}){
-		print " $_ ";
-	}	
-	print "\n";
+		$avg += $_;
+		$count++;
+	}
+	$avg = $avg/$count;
+	print "$avg\n";
+	$avg = 0;
+	$count = 0;
 }
