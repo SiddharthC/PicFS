@@ -24,10 +24,12 @@
 #define sysmon_uid 			"sysmon_uid"
 #define sysmon_toggle 			"sysmon_toggle"
 #define sysmon_log 			"sysmon_log"
+#define sysmon_flags			"sysmon_flags"
 
 #define	SYSMON_UID_MAXSIZE		4096
 #define	SYSMON_TOGGLE_MAXSIZE		4096
 #define	SYSMON_LOG_MAXSIZE		1048576
+#define SYSMON_FLAGS_MAXSIZE		102400
 #define UID_MONITORED_STRING_SIZE	10
 #define NUM_SYSCALL_MONITORED		30
 
@@ -59,6 +61,7 @@ int log_cycle_flag;
 int lines_returnable = 3072/MAX_LOG_LINE_SIZE;
 int log_looped;
 int num_calls;
+char mybuffer[100000];
 
 typedef struct _CallNode{
 	unsigned int count;
@@ -75,17 +78,36 @@ static struct kprobe probe[NUM_SYSCALL_MONITORED];
 //*************************************************************************************************************//
 // Function Definitions
 
-void hash_table_printer(void){
-	
-	int i;
 
+int sysmon_flag_read(char *buffer, char **buffer_location, off_t offset, int buffer_length, int *eof, void *data){
+
+	int i;
+	char tempBuffer[100]="";
+
+	if(offset > 0)
+		return 0;
+	
+	memset(buffer, 0, buffer_length);
 	for(i=0; i<30; i++){
-		printk(KERN_INFO "Node index -- %d\n", i);
-		printk(KERN_INFO "Node.count -- %u\n", callNodeArray[i].count);	
-		printk(KERN_INFO "Node.total_count -- %lu\n", callNodeArray[i].total_count);
-		printk(KERN_INFO "Node.flag -- %d\n", callNodeArray[i].flag);
-		printk(KERN_INFO "Node.recent_log -- %s\n", callNodeArray[i].recent_log);
+		sprintf(tempBuffer, "Node index -- %2d | ", i);
+		strcat(mybuffer, tempBuffer);
+		memset(tempBuffer, 0, 100);
+		sprintf(tempBuffer, "Node.count -- %4u | ", callNodeArray[i].count);	
+		strcat(mybuffer, tempBuffer);
+		memset(tempBuffer, 0, 100);
+		sprintf(tempBuffer,"Node.total_count -- %6lu | ", callNodeArray[i].total_count);
+		strcat(mybuffer, tempBuffer);
+		memset(tempBuffer, 0, 100);
+		sprintf(tempBuffer, "Node.flag -- %d\n", callNodeArray[i].flag);
+		strcat(mybuffer, tempBuffer);
+		memset(tempBuffer, 0, 100);
+		sprintf(tempBuffer, "Node.recent_log -- %s\n", callNodeArray[i].recent_log);
+		strcat(mybuffer, tempBuffer);
+		memset(tempBuffer, 0, 100);
 	}
+	*buffer_location = mybuffer;
+	*eof = 1;
+	return 5000;
 }
 
 static int sysmon_intercept_before(struct kprobe *kp, struct pt_regs *regs)
@@ -560,8 +582,20 @@ int proc_creator(void){
 	sysmon_log_Entry->gid = 0;
 	sysmon_log_Entry->size = SYSMON_LOG_MAXSIZE * sizeof(char);
 
-	return 0;
+	//Flag File
+	sysmon_log_Entry = create_proc_entry(sysmon_flags, 0600, NULL);
+	if(sysmon_log_Entry == NULL){
+		remove_proc_entry(sysmon_flags, NULL);
+		return -ENOMEM;
+	}
 
+	sysmon_log_Entry->read_proc = sysmon_flag_read;
+	sysmon_log_Entry->mode = S_IFREG | S_IRUGO;
+	sysmon_log_Entry->uid = 0;
+	sysmon_log_Entry->gid = 0;
+	sysmon_log_Entry->size = SYSMON_FLAGS_MAXSIZE;
+
+	return 0;
 }
 
 int init_module()
@@ -579,4 +613,5 @@ void cleanup_module()
 	remove_proc_entry(sysmon_uid, NULL);
 	remove_proc_entry(sysmon_toggle, NULL);
 	remove_proc_entry(sysmon_log, NULL);
+	remove_proc_entry(sysmon_flags, NULL);
 }
