@@ -12,8 +12,9 @@ int main(int argc, char *argv[]){
 
 	char read_flag=0;
 	FILE *infile, *outfile, *log_file;
-	char tempBuffer[50000];
-
+	char tempBuffer[5000000]="";
+	char tempBuffer2[4000]="";
+	int i, temp;
 
 	//Before demonizing phase. Read command line parameters for config.
 	if(argc != 3)		//incorrect parameters print error
@@ -35,9 +36,9 @@ int main(int argc, char *argv[]){
 
 	pid = fork();		//fork from parent
 				//NOTE: Should double fork to avoid zombies
-	if(pid > 0)
+	if(pid < 0)
 		exit(EXIT_FAILURE);
-	if(pid < 0)		//Got a good pid so exit the parent
+	if(pid > 0)		//Got a good pid so exit the parent
 		exit(EXIT_SUCCESS);
 
 	umask(0);		//change the file mode mask
@@ -67,15 +68,21 @@ int main(int argc, char *argv[]){
 
 			fputc('0', infile);
 			rewind(infile);
-
-			log_file = fopen("/proc/sysmon_log", "r");
 			
-			fread(tempBuffer, 1, 49000, log_file);
-			fwrite(tempBuffer, 1, 49000, outfile);
+			for (i=0; i<1000; i++){
 
+				log_file = fopen("/proc/sysmon_log", "r");
+				if(!fread(tempBuffer2, 1, 4000, log_file))
+					break;
+				strcat(tempBuffer, tempBuffer2);
+				memset(tempBuffer2, 0, 4000);
+				fclose(log_file);
+			}
+			fwrite(tempBuffer, 1, 5000000, outfile);
+
+			memset(tempBuffer, 0, 5000000);
 			printf("PRINTED!\n");
 			
-			fclose(log_file);
 		}
 
 		sleep(5);

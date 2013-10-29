@@ -1,7 +1,7 @@
 obj-m += interposer_v1.o
 
 all:
-	gcc deamon_interposer.c -o deamon_interpos.o
+	gcc -ggdb deamon_interposer.c -o deamon_interpos.o
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules
 
 clean:
