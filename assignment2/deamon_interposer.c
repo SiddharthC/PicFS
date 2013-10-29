@@ -66,12 +66,12 @@ int main(int argc, char *argv[]){
 			fputc('0', infile);
 			rewind(infile);
 			
-			for (i=0; i<10; i++){					//Fix for complete buffer change to 1000
+			for (i=0; i<100; i++){					//Fix for complete buffer change to 1000
 				fread(tempBuffer2, 1, 4000, log_file);
 				strcat(tempBuffer, tempBuffer2);
 				rewind(log_file);
-//				if(tempBuffer2[0] == '\0')
-//					break;
+				if(feof(log_file))
+					break;
 				memset(tempBuffer2, 0, 4000);
 			}
 			fwrite(tempBuffer, 1, 5000000, outfile);

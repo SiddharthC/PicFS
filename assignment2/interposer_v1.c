@@ -418,6 +418,7 @@ int sysmon_log_read(char *buffer, char **buffer_location, off_t offset, int buff
 		log_looped = 0;
 		log_offset_read = -1;
 		printk("!!!!!!!!! RESET\n");
+		*eof = 1;
 		return 0;
 	}
 
@@ -469,7 +470,7 @@ int sysmon_log_read(char *buffer, char **buffer_location, off_t offset, int buff
 		log_offset_read -= MAX_LOG_LINES;
 	}
 	
-	*eof = 1;
+//	*eof = 1;
 
 	printk("########## Num_Sent: %d ###############\n", logs_sent);
 
