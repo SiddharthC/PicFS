@@ -92,8 +92,10 @@ static int sysmon_intercept_before(struct kprobe *kp, struct pt_regs *regs)
 	int hash_index = -1;
 
 	struct timespec tempts, diffts;
-
-	char temp_log[MAX_LOG_LINE_SIZE];
+	
+	struct timeval t;
+	unsigned int ts, s, m, h;
+	char temp_log[MAX_LOG_LINE_SIZE] = "";
 
 	if ( !toggle_monitored_int || (current_uid() != uid_monitored_int))
 		return 0;
@@ -103,99 +105,165 @@ static int sysmon_intercept_before(struct kprobe *kp, struct pt_regs *regs)
 			log_cycle_flag = 1;
 		}
 
-		switch (regs->ax) {
+		do_gettimeofday(&t);
+		ts = t.tv_sec;
+		s = ts%60;
+		ts /= 60;
+		m = ts%60;
+		ts /= 60;
+		h = ts%24;
+
+		switch (regs->ax) {   //CHANGE MICRO SECOND TO 6 DIGITS AND REG->AX TO 3 DIGITS
 		
 			case __NR_access:
-//				sprintf(temp_log, "%lu %d %d| User: %d Syscall: %lu PID: %d TGID: %d\n", 
-//					regs->ax, current->pid, current->tgid, current_uid(), regs->ax, current->pid, current->tgid);
+				sprintf(temp_log, "%02d:%02d:%02d:%06d|access U: %04d S: %03lu PID: %05d TGID: %05d\n", 
+					h, m, s, (int)t.tv_usec, current_uid(), regs->ax, current->pid, current->tgid);
 				hash_index = 0;
 				break;
 			case __NR_brk:
-				hash_index = 1;
+				sprintf(temp_log, "%02d:%02d:%02d:%06d|brk    U: %04d S: %03lu PID: %05d TGID: %05d\n", 
+					h, m, s, (int)t.tv_usec, current_uid(), regs->ax, current->pid, current->tgid);
+			hash_index = 1;
 				break;
 			case __NR_chdir:
-				hash_index = 2;
+				sprintf(temp_log, "%02d:%02d:%02d:%06d|chdir  U: %04d S: %03lu PID: %05d TGID: %05d\n", 
+					h, m, s, (int)t.tv_usec, current_uid(), regs->ax, current->pid, current->tgid);
+			hash_index = 2;
 				break;
 			case __NR_chmod:
-				hash_index = 3;
+				sprintf(temp_log, "%02d:%02d:%02d:%06d|chmod  U: %04d S: %03lu PID: %05d TGID: %05d\n", 
+					h, m, s, (int)t.tv_usec, current_uid(), regs->ax, current->pid, current->tgid);
+			hash_index = 3;
 				break;
 			case __NR_clone:
-				hash_index = 4;
+				sprintf(temp_log, "%02d:%02d:%02d:%06d|clone  U: %04d S: %03lu PID: %05d TGID: %05d\n", 
+					h, m, s, (int)t.tv_usec, current_uid(), regs->ax, current->pid, current->tgid);
+			hash_index = 4;
 				break;
 			case __NR_close:
-				hash_index = 5;
+				sprintf(temp_log, "%02d:%02d:%02d:%06d|close  U: %04d S: %03lu PID: %05d TGID: %05d\n", 
+					h, m, s, (int)t.tv_usec, current_uid(), regs->ax, current->pid, current->tgid);
+			hash_index = 5;
 				break;
 			case __NR_dup:
-				hash_index = 6;
+				sprintf(temp_log, "%02d:%02d:%02d:%06d|dup    U: %04d S: %03lu PID: %05d TGID: %05d\n", 
+					h, m, s, (int)t.tv_usec, current_uid(), regs->ax, current->pid, current->tgid);
+			hash_index = 6;
 				break;
 			case __NR_dup2:
-				hash_index = 7;
+				sprintf(temp_log, "%02d:%02d:%02d:%06d|dup2   U: %04d S: %03lu PID: %05d TGID: %05d\n", 
+					h, m, s, (int)t.tv_usec, current_uid(), regs->ax, current->pid, current->tgid);
+			hash_index = 7;
 				break;
 			case __NR_execve:
-				hash_index = 8;
+				sprintf(temp_log, "%02d:%02d:%02d:%06d|execve U: %04d S: %03lu PID: %05d TGID: %05d\n", 
+					h, m, s, (int)t.tv_usec, current_uid(), regs->ax, current->pid, current->tgid);
+			hash_index = 8;
 				break;
 			case __NR_exit_group:
-				hash_index = 9;
+				sprintf(temp_log, "%02d:%02d:%02d:%06d|exit_g U: %04d S: %03lu PID: %05d TGID: %05d\n", 
+					h, m, s, (int)t.tv_usec, current_uid(), regs->ax, current->pid, current->tgid);
+			hash_index = 9;
 				break;		
 			case __NR_fcntl:
-				hash_index = 10;
+				sprintf(temp_log, "%02d:%02d:%02d:%06d|fcntl  U: %04d S: %03lu PID: %05d TGID: %05d\n", 
+					h, m, s, (int)t.tv_usec, current_uid(), regs->ax, current->pid, current->tgid);
+			hash_index = 10;
 				break;		
 			case __NR_fork:
-				hash_index = 11;
+				sprintf(temp_log, "%02d:%02d:%02d:%06d|fork   U: %04d S: %03lu PID: %05d TGID: %05d\n", 
+					h, m, s, (int)t.tv_usec, current_uid(), regs->ax, current->pid, current->tgid);
+			hash_index = 11;
 				break;		
 			case __NR_getdents:
-				hash_index = 12;
+				sprintf(temp_log, "%02d:%02d:%02d:%06d|gdents U: %04d S: %03lu PID: %05d TGID: %05d\n", 
+					h, m, s, (int)t.tv_usec, current_uid(), regs->ax, current->pid, current->tgid);
+			hash_index = 12;
 				break;	
 			case __NR_getpid:
-				hash_index = 13;
+				sprintf(temp_log, "%02d:%02d:%02d:%06d|getpid U: %04d S: %03lu PID: %05d TGID: %05d\n", 
+					h, m, s, (int)t.tv_usec, current_uid(), regs->ax, current->pid, current->tgid);
+			hash_index = 13;
 				break;
 			case __NR_gettid:
-				hash_index = 14;
+				sprintf(temp_log, "%02d:%02d:%02d:%06d|gettid U: %04d S: %03lu PID: %05d TGID: %05d\n", 
+					h, m, s, (int)t.tv_usec, current_uid(), regs->ax, current->pid, current->tgid);
+			hash_index = 14;
 				break;
 			case __NR_ioctl:
-				hash_index = 15;
+				sprintf(temp_log, "%02d:%02d:%02d:%06d|ioctl  U: %04d S: %03lu PID: %05d TGID: %05d\n", 
+					h, m, s, (int)t.tv_usec, current_uid(), regs->ax, current->pid, current->tgid);
+			hash_index = 15;
 				break;
 			case __NR_lseek:
-				hash_index = 16;
+				sprintf(temp_log, "%02d:%02d:%02d:%06d|lseek  U: %04d S: %03lu PID: %05d TGID: %05d\n", 
+					h, m, s, (int)t.tv_usec, current_uid(), regs->ax, current->pid, current->tgid);
+			hash_index = 16;
 				break;
 			case __NR_mkdir:
-				hash_index = 17;
+				sprintf(temp_log, "%02d:%02d:%02d:%06d|mkdir  U: %04d S: %03lu PID: %05d TGID: %05d\n", 
+					h, m, s, (int)t.tv_usec, current_uid(), regs->ax, current->pid, current->tgid);
+			hash_index = 17;
 				break;
 			case __NR_mmap:
-				hash_index = 18;
+				sprintf(temp_log, "%02d:%02d:%02d:%06d|mmap   U: %04d S: %03lu PID: %05d TGID: %05d\n", 
+					h, m, s, (int)t.tv_usec, current_uid(), regs->ax, current->pid, current->tgid);
+			hash_index = 18;
 				break;
 			case __NR_munmap:
-				hash_index = 19;
+				sprintf(temp_log, "%02d:%02d:%02d:%06d|munmap U: %04d S: %03lu PID: %05d TGID: %05d\n", 
+					h, m, s, (int)t.tv_usec, current_uid(), regs->ax, current->pid, current->tgid);
+			hash_index = 19;
 				break;
 			case __NR_open:
-				hash_index = 20;
+				sprintf(temp_log, "%02d:%02d:%02d:%06d|open   U: %04d S: %03lu PID: %05d TGID: %05d\n", 
+					h, m, s, (int)t.tv_usec, current_uid(), regs->ax, current->pid, current->tgid);
+			hash_index = 20;
 				break;
 			case __NR_pipe:
-				hash_index = 21;
+				sprintf(temp_log, "%02d:%02d:%02d:%06d|pipe   U: %04d S: %03lu PID: %05d TGID: %05d\n", 
+					h, m, s, (int)t.tv_usec, current_uid(), regs->ax, current->pid, current->tgid);
+			hash_index = 21;
 				break;
 			case __NR_read:
-				hash_index = 22;
+				sprintf(temp_log, "%02d:%02d:%02d:%06d|read   U: %04d S: %03lu PID: %05d TGID: %05d\n", 
+					h, m, s, (int)t.tv_usec, current_uid(), regs->ax, current->pid, current->tgid);
+			hash_index = 22;
 				break;
 			case __NR_rmdir:
-				hash_index = 23;
+				sprintf(temp_log, "%02d:%02d:%02d:%06d|rmdir  U: %04d S: %03lu PID: %05d TGID: %05d\n", 
+					h, m, s, (int)t.tv_usec, current_uid(), regs->ax, current->pid, current->tgid);
+			hash_index = 23;
 				break;
 			case __NR_select:
-				hash_index = 24;
+				sprintf(temp_log, "%02d:%02d:%02d:%06d|select U: %04d S: %03lu PID: %05d TGID: %05d\n", 
+					h, m, s, (int)t.tv_usec, current_uid(), regs->ax, current->pid, current->tgid);
+			hash_index = 24;
 				break;
 			case __NR_stat:
-				hash_index = 25;
+				sprintf(temp_log, "%02d:%02d:%02d:%06d|stat   U: %04d S: %03lu PID: %05d TGID: %05d\n", 
+					h, m, s, (int)t.tv_usec, current_uid(), regs->ax, current->pid, current->tgid);
+			hash_index = 25;
 				break;
 			case __NR_fstat:
-				hash_index = 26;
+				sprintf(temp_log, "%02d:%02d:%02d:%06d|fstat  U: %04d S: %03lu PID: %05d TGID: %05d\n", 
+					h, m, s, (int)t.tv_usec, current_uid(), regs->ax, current->pid, current->tgid);
+			hash_index = 26;
 				break;
 			case __NR_lstat:
-				hash_index = 27;
+				sprintf(temp_log, "%02d:%02d:%02d:%06d|lstat  U: %04d S: %03lu PID: %05d TGID: %05d\n", 
+					h, m, s, (int)t.tv_usec, current_uid(), regs->ax, current->pid, current->tgid);
+			hash_index = 27;
 				break;
 			case __NR_wait4:
-				hash_index = 28;
+				sprintf(temp_log, "%02d:%02d:%02d:%06d|wait4  U: %04d S: %03lu PID: %05d TGID: %05d\n", 
+					h, m, s, (int)t.tv_usec, current_uid(), regs->ax, current->pid, current->tgid);
+			hash_index = 28;
 				break;
 			case __NR_write:
-				hash_index = 29;
+				sprintf(temp_log, "%02d:%02d:%02d:%06d|write  U: %04d S: %03lu PID: %05d TGID: %05d\n", 
+					h, m, s, (int)t.tv_usec, current_uid(), regs->ax, current->pid, current->tgid);
+			hash_index = 29;
 				break;
 			default:
 				return 0;
@@ -218,13 +286,10 @@ static int sysmon_intercept_before(struct kprobe *kp, struct pt_regs *regs)
 			getnstimeofday(&callNodeArray[hash_index].ts);
 		}
 		else{
-			sprintf(log_ptr[log_offset++] , "%lu %d %d| User: %d Syscall: %lu PID: %d TGID: %d\n", 
-				regs->ax, current->pid, current->tgid, current_uid(), regs->ax, current->pid, current->tgid);
-			
+			memcpy(log_ptr[log_offset++], temp_log, MAX_LOG_LINE_SIZE);
 		}
 
-		sprintf(callNodeArray[hash_index].recent_log, "%lu %d %d| User: %d Syscall: %lu PID: %d TGID: %d\n", 
-			regs->ax, current->pid, current->tgid, current_uid(), regs->ax, current->pid, current->tgid);
+		memcpy(callNodeArray[hash_index].recent_log, temp_log, MAX_LOG_LINE_SIZE);
 
 		return ret;
 }
@@ -330,11 +395,10 @@ int sysmon_log_read(char *buffer, char **buffer_location, off_t offset, int buff
 	for (i=log_offset_read; i< MAX_LOG_LINES; i++){
 		if((log_sent++ > lines_returnable))
 			break;
-			
 		strcat(buffer, log_ptr[i]);
 	}
 
-	if(log_cycle_flag){	
+	if(log_cycle_flag){
 		for(i=0; i<log_offset; i++){
 			if(log_sent++ > lines_returnable)
 				break;
