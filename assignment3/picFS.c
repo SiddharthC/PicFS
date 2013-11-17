@@ -3,8 +3,9 @@
   #include <string.h>
   #include <errno.h>
   #include <fcntl.h>
-   
-  #define FUSE_USE_VERSION  26
+#include <mysql.h>
+
+  //#define FUSE_USE_VERSION  26
   
   static const char *hello_str = "Hello World!\n";
   static const char *hello_path = "/hello";
@@ -85,6 +86,34 @@
     .read    = picFS_read,
   };
   
-  int main(int argc, char *argv[]) {
-    return fuse_main(argc, argv, &picFS_oper, NULL);
-  }
+//Database functions
+void database_initializer(void){
+	MYSQL *con = mysql_init(NULL);
+
+	if(con == NULL){
+		fprintf(stderr, "%s\n", mysql_error(con));
+		exit(1);
+	}
+
+	if(mysql_real_connect(con, "192.168.5.1", "root", "fire", NULL, 0, NULL, 0) == NULL){
+		fprintf(stderr, "%s\n", mysql_error(con));
+		mysql_close(con)
+		exit(1);
+	}
+
+	if (mysql_query(con, "CREATE DATABASE testdb")){
+		fprintf(stderr, "%s\n", mysql_error(con));
+		mysql_close(con);
+		exit(1);
+	}
+	
+	mysql_close(con);
+//	exit(0);
+}
+
+int main(int argc, char *argv[]) {
+	
+	database_initializer();
+
+	return fuse_main(argc, argv, &picFS_oper, NULL);
+}
