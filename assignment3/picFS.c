@@ -1,12 +1,11 @@
-  #include <fuse.h>
-  #include <stdio.h>
-  #include <string.h>
-  #include <errno.h>
-  #include <fcntl.h>
+#include <fuse.h>
+#include <stdio.h>
+#include <string.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <mysql.h>
+#include <stdlib.h>
 
-  //#define FUSE_USE_VERSION  26
-  
   static const char *hello_str = "Hello World!\n";
   static const char *hello_path = "/hello";
 
@@ -79,12 +78,12 @@
 //**********************************************************************//
 //  ***********************   MAIN BELOW   ************** ************  //
 //*********************************************************************//
-  static struct fuse_operations picFS_oper = {
+static struct fuse_operations picFS_oper = {
     .getattr = picFS_getattr,
     .readdir = picFS_readdir,
     .open    = picFS_open,
     .read    = picFS_read,
-  };
+};
   
 //Database functions
 void database_initializer(void){
@@ -97,7 +96,7 @@ void database_initializer(void){
 
 	if(mysql_real_connect(con, "192.168.5.1", "root", "fire", NULL, 0, NULL, 0) == NULL){
 		fprintf(stderr, "%s\n", mysql_error(con));
-		mysql_close(con)
+		mysql_close(con);
 		exit(1);
 	}
 
