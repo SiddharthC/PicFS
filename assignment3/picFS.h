@@ -6,6 +6,8 @@
 #include <mysql.h>
 #include <stdlib.h>
 
+#define MAX_FILENAME_LENGTH 30
+
 //MYSQL connection pointer
 MYSQL *con;
 
@@ -49,3 +51,11 @@ static struct fuse_operations picFS_oper = {
     .destroy 		= picFS_destroy
 };
 
+typedef struct path_struct_t {
+	int depth; //0 = root, all others true
+	char *path_parts[MAX_FILENAME_LENGTH];
+} path_struct;
+
+path_struct * parsePath(const char*);
+void freePathStruct(path_struct *);
+void getParentPath(path_struct * ps, char * buf);
