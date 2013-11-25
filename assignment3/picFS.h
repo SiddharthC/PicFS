@@ -5,16 +5,14 @@
 #include <fcntl.h>
 #include <mysql.h>
 #include <stdlib.h>
+#include <time.h>
 
 #define MAX_FILENAME_LENGTH 30
+#define MAX_PATH_LENGTH 1000
+#define QUERY_LENGTH 300
 
 //MYSQL connection pointer
 MYSQL *con;
-
-static const char *hello_str = "Hello World!\n";
-static const char *hello_path = "/hello";
-
-static char buffer[20];
  
 //Handler function
 static int picFS_getattr(const char *path, struct stat *stbuf);
@@ -30,6 +28,9 @@ static int picFS_setxattr(const char *, const char *, const char *, size_t, int)
 static int picFS_getxattr(const char *, const char *, char *, size_t);
 static int picFS_removexattr(const char *, const char *);
 static int picFS_create(const char *, mode_t, struct fuse_file_info *);
+static int picFS_unlink(const char *);
+static int picFS_utimens(const char*, const struct timespec tv[2]);
+static int picFS_truncate(const char*, off_t);
 void picFS_destroy(void *s);
 
 void database_initializer(void);
@@ -48,6 +49,9 @@ static struct fuse_operations picFS_oper = {
     .getxattr 		= picFS_getxattr,
     .removexattr 	= picFS_removexattr,
     .create 		= picFS_create,
+    .unlink 		= picFS_unlink,
+    .utimens		= picFS_utimens,
+    .truncate		= picFS_truncate,
     .destroy 		= picFS_destroy
 };
 
