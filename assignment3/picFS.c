@@ -381,12 +381,14 @@ int file_size;
 int buff_lock;
 
 static int picFS_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi) {
-	if(size == 0)
+	if(size == 0 || offset < 0)
 		return 0;
 	
+	char *temp_buffer;
+
 	//If first call
-	if(buff_lock == 0) {
-		buff_lock = 1;
+//	if(buff_lock == 0) {
+//		buff_lock = 1;
 		path_struct *ps = parsePath(path);
 		char file_name[MAX_FILENAME_LENGTH];
 		strncpy(file_name, ps->path_parts[ps->depth - 1], MAX_FILENAME_LENGTH);
@@ -404,15 +406,23 @@ static int picFS_read(const char *path, char *buf, size_t size, off_t offset, st
 		MYSQL_RES *result = mysql_store_result(con);
 		MYSQL_ROW row = mysql_fetch_row(result);
 
-		strcpy(file_buffer, row[0]);
+		//Allocating temporary buffer
+		temp_buffer = (char *)calloc(MAX_FILE_SIZE, sizeof(char));
+
+		strcpy(temp_buffer, row[0]);
+		fprintf(stdout, "----------------------------file buffer is %s\n", temp_buffer);
 		file_size = atoi(row[1]);
+		fprintf(stdout, "----------------------------file_size is %u\n", file_size);
 		freePathStruct(ps);
-	}
+		fflush(stdout);
+//	}
 	
    	 if (offset < file_size-1) {
+		if (size > file_size)
+			size = file_size;
 		if (offset + size > file_size)
-			size = file_size - offset;
-		memcpy(buf, file_buffer + offset, size);
+			size = file_size-offset;
+		memcpy(buf, temp_buffer + offset, size);
 		return size;
     	} 
     	else {
@@ -423,29 +433,57 @@ static int picFS_read(const char *path, char *buf, size_t size, off_t offset, st
 }
 
 static int picFS_write(const char *path, const char *buf, size_t size, off_t offset, struct fuse_file_info *fi) {
+	if(size ==0 || offset < 0)
+		return 0;
+
 	char query[QUERY_LENGTH];
 	path_struct *ps = parsePath(path);
 	char file_name[MAX_FILENAME_LENGTH];
 	strncpy(file_name, ps->path_parts[ps->depth - 1], MAX_FILENAME_LENGTH);
 	char parent_path[MAX_PATH_LENGTH];
 	getParentPath(ps, parent_path);
+	int file_size;
+	char *temp_buffer;
 	
 	//TODO ENCRYPT!
 	if(offset == 0) {
-	sprintf(query,  "UPDATE file_table SET file_data=\"%s\", size=%d WHERE path=\"%s\" AND file_name=\"%s\";",
+		sprintf(query,  "UPDATE file_table SET file_data=\"%s\", size=%d WHERE path=\"%s\" AND file_name=\"%s\";",
 			buf, size, parent_path, file_name);
 	}
 	else {
-	sprintf(query,  "UPDATE file_table SET file_data=concat(file_data,\"%s\"), size=size+%d "
+		sprintf(query,  "SELECT file_data, size FROM file_table WHERE path=\"%s\" AND file_name=\"%s\";",
+			parent_path, file_name);
+		if (mysql_query(con, query)){
+			mysql_close(con);
+			exit(1);
+		}
+		MYSQL_RES *result = mysql_store_result(con);
+		MYSQL_ROW row = mysql_fetch_row(result);
+		temp_buffer = (char *)calloc(MAX_FILE_SIZE, sizeof(char));
+		strcpy(temp_buffer, row[0]);
+		file_size = atoi(row[1]);
+
+		//Make the new buffer
+		if(offset > file_size - 1 )
+			offset = 0;
+		strcpy(temp_buffer + offset, buf );
+
+		if(offset == 0)
+			file_size = size;
+		if((offset + size) > file_size)
+			file_size = offset + size;
+		
+		//Write a new buffer
+		sprintf(query,  "UPDATE file_table SET file_data=\"%s\", size=%d "
 			"WHERE path=\"%s\" AND file_name=\"%s\";",
-			buf, size, parent_path, file_name);
+			temp_buffer, file_size, parent_path, file_name);
 	}
 	if (mysql_query(con, query)){
 		mysql_close(con);
 		exit(1);
 	}
 	freePathStruct(ps);
-	return size;
+	return size ;
 }
 
 static int picFS_setxattr(const char *path, const char *attr, const char *input, size_t input_size, int flags){
