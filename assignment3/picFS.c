@@ -10,14 +10,12 @@ FILE *log_file;
 static int picFS_mkdir(const char *path, mode_t mode){
 	path_struct *ps = parsePath(path);
 
-	//Gets file name from path
 	char file_name[MAX_FILENAME_LENGTH];
 	strncpy(file_name, ps->path_parts[ps->depth - 1], MAX_FILENAME_LENGTH);
 
 	if(strcmp(file_name, "/") == 0)
 		return -EBADF;
 
-	//Get parent path
 	char parent_path[MAX_PATH_LENGTH];
 	getParentPath(ps, parent_path);
 
@@ -71,20 +69,16 @@ static int picFS_rmdir(const char *path){
 	
 	path_struct *ps = parsePath(path);
 
-	//Gets file name from path
 	char file_name[MAX_FILENAME_LENGTH];
 	strncpy(file_name, ps->path_parts[ps->depth - 1], MAX_FILENAME_LENGTH);
 
 	if(strcmp(file_name, "/") == 0)
 		return -EBADF;
 
-	//Get parent path
 	char parent_path[MAX_PATH_LENGTH];
 	getParentPath(ps, parent_path);
 
-	//Remove File
 	sprintf(query, "DELETE FROM file_table WHERE file_name=\"%s\" AND path=\"%s\";", file_name, parent_path); 
-	
 	if (mysql_query(con, query)){
 		mysql_close(con);
 		exit(1);
@@ -142,9 +136,6 @@ static int picFS_rename(const char *path, const char *name){
 			exit(1);
 		}
 	}
-	else { //DIRECTORY
-
-	}
 	
 	freePathStruct(ps);
 	return 0;
@@ -175,22 +166,20 @@ static int picFS_chmod(const char *path, mode_t mode){
 static int picFS_create(const char *path, mode_t mode, struct fuse_file_info *fi){
 	path_struct *ps = parsePath(path);
 
-	//Gets file name from path
 	char file_name[MAX_FILENAME_LENGTH];
 	strncpy(file_name, ps->path_parts[ps->depth - 1], MAX_FILENAME_LENGTH);
 
 	if(strcmp(file_name, "/") == 0)
 		return -EBADF;
 
-	//Get parent path
 	char parent_path[MAX_PATH_LENGTH];
 	getParentPath(ps, parent_path);
 
 	struct fuse_context *fc = fuse_get_context();
 
-	char query[QUERY_LENGTH];
+	char query[QUERY_LENGTH];  //TODO REMOVE TEST SIZE/FILE_DATA
 	sprintf(query,  "INSERT INTO file_table (file_name, path, perm_unix, perm_acl, owner, gid, size, file_data, nlink, " 
-			"ctime, mtime) VALUES (\"%s\", \"%s\", %u, \"\", %d, %d, 4096, \"\", 1, %d, %d);", 
+			"ctime, mtime) VALUES (\"%s\", \"%s\", %u, \"\", %d, %d, 9, \"TEST DATA\", 1, %d, %d);", 
 			file_name, parent_path, mode, fc->uid, fc->gid, TIME, TIME);
 	if (mysql_query(con, query)){
 		mysql_close(con);
@@ -204,11 +193,9 @@ static int picFS_create(const char *path, mode_t mode, struct fuse_file_info *fi
 static int picFS_unlink(const char * path) {
 	path_struct *ps = parsePath(path);
 
-	//Gets file name from path
 	char file_name[MAX_FILENAME_LENGTH];
 	strncpy(file_name, ps->path_parts[ps->depth - 1], MAX_FILENAME_LENGTH);
 
-	//Get parent path
 	char parent_path[MAX_PATH_LENGTH];
 	getParentPath(ps, parent_path);
 
@@ -250,11 +237,9 @@ static int picFS_getattr(const char *path, struct stat *stbuf) {
 	else {
 		path_struct *ps = parsePath(path);
 	
-		//Gets file name from path
 		char file_name[MAX_FILENAME_LENGTH];
 		strncpy(file_name, ps->path_parts[ps->depth - 1], MAX_FILENAME_LENGTH);
 	
-		//Get parent path
 		char parent_path[MAX_PATH_LENGTH];
 		getParentPath(ps, parent_path);
 	
@@ -275,7 +260,6 @@ static int picFS_getattr(const char *path, struct stat *stbuf) {
 	
 		int numRows = mysql_num_rows(result);
 		if(numRows == 0) { 
-			//NO ENTRY IN DATABASE
 			res = -ENOENT;
 		}
 		else {
@@ -306,7 +290,6 @@ static int picFS_readdir(const char *path, void *buf, fuse_fill_dir_t filler, of
     	filler(buf, ".", NULL, 0);
     	filler(buf, "..", NULL, 0);
     
-	//Read all files in that path
 	char query[QUERY_LENGTH];
 	sprintf(query,  "SELECT file_name FROM file_table WHERE path=\"%s\";", path);
 	if (mysql_query(con, query)){
@@ -332,11 +315,9 @@ static int picFS_open(const char *path, struct fuse_file_info *fi) {
 	struct fuse_context *fc = fuse_get_context();
 	path_struct *ps = parsePath(path);
 
-	//Gets file name from path
 	char file_name[MAX_FILENAME_LENGTH];
 	strncpy(file_name, ps->path_parts[ps->depth - 1], MAX_FILENAME_LENGTH);
 	
-	//Get parent path
 	char parent_path[MAX_PATH_LENGTH];
 	getParentPath(ps, parent_path);
 
@@ -380,35 +361,91 @@ static int picFS_open(const char *path, struct fuse_file_info *fi) {
 		}
 		else {
 			if(perm_unix & S_IWOTH) flag = O_WRONLY;
+			else {
+				//Check ACL
+			}
 		}
-
 	}
 
+	freePathStruct(ps);
 	if(flag == O_RDWR) {
-		if((fi->flags&3) == O_RDONLY | (fi->flags&3) == O_WRONLY) return 0;
+		if((fi->flags&3) == O_RDONLY || (fi->flags&3) == O_WRONLY) return 0;
 	}
 	if((fi->flags&3) == flag) return 0;
 	return -EACCES;
 }
-  
-static int picFS_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi) {
-/*
-    len = strlen(hello_str);
-    if (offset < len) {
-		if (offset + size > len)
-			size = len - offset;
-		memcpy(buf, hello_str + offset, size);
-    } 
-    else
-		size = 0;
 
-	return size;
-*/
-    return 0;
+//4MB File Buffer
+char file_buffer[MAX_FILE_SIZE];
+int file_size;
+int buff_lock;
+
+static int picFS_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi) {
+	if(size == 0)
+		return 0;
+	
+	//If first call
+	if(buff_lock == 0) {
+		buff_lock = 1;
+		path_struct *ps = parsePath(path);
+		char file_name[MAX_FILENAME_LENGTH];
+		strncpy(file_name, ps->path_parts[ps->depth - 1], MAX_FILENAME_LENGTH);
+		char parent_path[MAX_PATH_LENGTH];
+		getParentPath(ps, parent_path);
+	
+		//TODO DECRYPT!
+		char query[QUERY_LENGTH];
+		sprintf(query,  "SELECT file_data, size FROM file_table WHERE path=\"%s\" AND file_name=\"%s\";",
+			parent_path, file_name);
+		if (mysql_query(con, query)){
+			mysql_close(con);
+			exit(1);
+		}
+		MYSQL_RES *result = mysql_store_result(con);
+		MYSQL_ROW row = mysql_fetch_row(result);
+
+		strcpy(file_buffer, row[0]);
+		file_size = atoi(row[1]);
+		freePathStruct(ps);
+	}
+	
+   	 if (offset < file_size-1) {
+		if (offset + size > file_size)
+			size = file_size - offset;
+		memcpy(buf, file_buffer + offset, size);
+		return size;
+    	} 
+    	else {
+		buff_lock = 0;
+		file_size = 0;
+		return 0;
+	}
 }
 
 static int picFS_write(const char *path, const char *buf, size_t size, off_t offset, struct fuse_file_info *fi) {
-	return 0;
+	char query[QUERY_LENGTH];
+	path_struct *ps = parsePath(path);
+	char file_name[MAX_FILENAME_LENGTH];
+	strncpy(file_name, ps->path_parts[ps->depth - 1], MAX_FILENAME_LENGTH);
+	char parent_path[MAX_PATH_LENGTH];
+	getParentPath(ps, parent_path);
+	
+	//TODO ENCRYPT!
+	if(offset == 0) {
+	sprintf(query,  "UPDATE file_table SET file_data=\"%s\", size=%d WHERE path=\"%s\" AND file_name=\"%s\";",
+			buf, size, parent_path, file_name);
+	}
+	else {
+	sprintf(query,  "UPDATE file_table SET file_data=concat(file_data,\"%s\"), size=size+%d "
+			"WHERE path=\"%s\" AND file_name=\"%s\";",
+			buf, size, parent_path, file_name);
+	}
+	if (mysql_query(con, query)){
+		mysql_close(con);
+		exit(1);
+	}
+	freePathStruct(ps);
+	return size;
 }
 
 static int picFS_setxattr(const char *path, const char *attr, const char *input, size_t input_size, int flags){
@@ -423,6 +460,9 @@ static int picFS_removexattr(const char *path, const char *attr){
 	return 0;
 }
 
+/*****************************************************************************/
+/*****************************************************************************/
+/*****************************************************************************/
 static int picFS_access(const char* path, int flags) {
 	//DOES NOT NEED IMPLEMENT
 	return 0;
@@ -441,12 +481,9 @@ static int picFS_truncate(const char* path, off_t offset) {
 void picFS_destroy(void *s) {
 	mysql_close(con);
 }
-
 //**********************************************************************//
 //  ***********************   MAIN BELOW   ************** ************  //
 //*********************************************************************//
- 
-//Database functions
 void database_initializer(void){
 	con = mysql_init(NULL);
 

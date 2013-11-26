@@ -11,6 +11,7 @@
 #define MAX_PATH_LENGTH 1000
 #define QUERY_LENGTH 300
 #define MAX_ACL_SIZE 1000
+#define MAX_FILE_SIZE 4194304
 
 //MYSQL connection pointer
 MYSQL *con;
