@@ -328,14 +328,70 @@ static int picFS_readdir(const char *path, void *buf, fuse_fill_dir_t filler, of
 	return 0;
 }
   
-static int picFS_open(const char *path, struct fuse_file_info *fi) {
-   	 return 0;
+static int picFS_open(const char *path, struct fuse_file_info *fi) {	
+	struct fuse_context *fc = fuse_get_context();
+	path_struct *ps = parsePath(path);
+
+	//Gets file name from path
+	char file_name[MAX_FILENAME_LENGTH];
+	strncpy(file_name, ps->path_parts[ps->depth - 1], MAX_FILENAME_LENGTH);
+	
+	//Get parent path
+	char parent_path[MAX_PATH_LENGTH];
+	getParentPath(ps, parent_path);
+
+	char query[QUERY_LENGTH];
+	sprintf(query,  "SELECT perm_unix, perm_acl, owner, gid FROM file_table WHERE path=\"%s\" AND file_name=\"%s\";",
+			parent_path, file_name);
+	if (mysql_query(con, query)){
+		mysql_close(con);
+		exit(1);
+	}
+	MYSQL_RES *result = mysql_store_result(con);
+	MYSQL_ROW row = mysql_fetch_row(result);
+
+	int perm_unix = atoi(row[0]);
+	char perm_acl[MAX_ACL_SIZE];
+	strcpy(perm_acl, row[1]);
+	int flag = 0;
+
+	if(fc->uid == atoi(row[2])) { //OWNER
+		if(perm_unix & S_IRUSR)	{
+			if(perm_unix & S_IWUSR) flag = O_RDWR;
+			else flag = O_RDONLY;
+		}
+		else {
+			if(perm_unix & S_IWUSR) flag = O_WRONLY;
+		}
+	}
+	else if(fc->gid == atoi(row[3])) { //GROUP
+		if(perm_unix & S_IRGRP)	{
+			if(perm_unix & S_IWGRP) flag = O_RDWR;
+			else flag = O_RDONLY;
+		}
+		else {
+			if(perm_unix & S_IWGRP) flag = O_WRONLY;
+		}
+	} 
+	else { //OTHER
+		if(perm_unix & S_IROTH)	{
+			if(perm_unix & S_IWOTH) flag = O_RDWR;
+			else flag = O_RDONLY;
+		}
+		else {
+			if(perm_unix & S_IWOTH) flag = O_WRONLY;
+		}
+
+	}
+
+	if(flag == O_RDWR) {
+		if((fi->flags&3) == O_RDONLY | (fi->flags&3) == O_WRONLY) return 0;
+	}
+	if((fi->flags&3) == flag) return 0;
+	return -EACCES;
 }
   
 static int picFS_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi) {
-    //size_t len;
-    (void) fi;
-
 /*
     len = strlen(hello_str);
     if (offset < len) {
@@ -348,12 +404,11 @@ static int picFS_read(const char *path, char *buf, size_t size, off_t offset, st
 
 	return size;
 */
-    return 20;
+    return 0;
 }
 
-
 static int picFS_write(const char *path, const char *buf, size_t size, off_t offset, struct fuse_file_info *fi) {
-	return 20;
+	return 0;
 }
 
 static int picFS_setxattr(const char *path, const char *attr, const char *input, size_t input_size, int flags){
@@ -365,6 +420,11 @@ static int picFS_getxattr(const char *path, const char *attr, char *output, size
 }
 
 static int picFS_removexattr(const char *path, const char *attr){
+	return 0;
+}
+
+static int picFS_access(const char* path, int flags) {
+	//DOES NOT NEED IMPLEMENT
 	return 0;
 }
 
@@ -415,7 +475,6 @@ void database_initializer(void){
 	}
 
 	//Create File Table
-	//TODO remember to change file_data to longblob
 	if (mysql_query(con, "CREATE TABLE IF NOT EXISTS file_table (file_name VARCHAR(200), path VARCHAR(2000), perm_unix INT, "
 				"perm_acl VARCHAR(200), owner INT, gid INT, size INT, file_data LONGBLOB, nlink INT, "
 				"ctime BIGINT, mtime BIGINT);")){
@@ -435,7 +494,7 @@ void database_initializer(void){
 	if(mysql_num_rows(result) == 0) {
 		char query[QUERY_LENGTH];
 		sprintf(query, "INSERT INTO file_table (file_name, path, perm_unix, perm_acl, owner, gid, size, file_data, nlink, "
-			"ctime, mtime) VALUES (\"/\", \"MOUNT\", %d, \"NONE\", 0, 0, 4096, \"Root Directory\", 2, %d, %d);",
+			"ctime, mtime) VALUES (\"/\", \"MOUNT\", %u, \"NONE\", 0, 0, 4096, \"Root Directory\", 2, %d, %d);",
 			0777 | S_IFDIR, TIME, TIME);
 		if (mysql_query(con, query)){
 			fprintf(stdout, "%s\n", mysql_error(con));
