@@ -283,7 +283,7 @@ static int picFS_getattr(const char *path, struct stat *stbuf) {
 	}
     	return res;
 }
-  
+
 static int picFS_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi) {
     	(void) offset;
     	(void) fi;
@@ -546,7 +546,73 @@ static int picFS_removexattr(const char *path, const char *attr){
 /*****************************************************************************/
 /*****************************************************************************/
 static int picFS_access(const char* path, int flags) {
-	//DOES NOT NEED IMPLEMENT
+
+	if(path[1] == '\0')
+		return 0;
+	
+	struct fuse_context *fc = fuse_get_context();
+	path_struct *ps = parsePath(path);
+
+	char file_name[MAX_FILENAME_LENGTH];
+	strncpy(file_name, ps->path_parts[ps->depth - 1], MAX_FILENAME_LENGTH);
+	
+	char parent_path[MAX_PATH_LENGTH];
+	getParentPath(ps, parent_path);
+
+	char query[QUERY_LENGTH];
+	sprintf(query,  "SELECT perm_unix, perm_acl, owner, gid FROM file_table WHERE path=\"%s\" AND file_name=\"%s\";",
+			parent_path, file_name);
+	if (mysql_query(con, query)){
+		mysql_close(con);
+		exit(1);
+	}
+	MYSQL_RES *result = mysql_store_result(con);
+	MYSQL_ROW row = mysql_fetch_row(result);
+
+	int perm_unix = atoi(row[0]);
+	char perm_acl[MAX_ACL_SIZE];
+	strcpy(perm_acl, row[1]);
+	int flag = -1;
+
+	if(fc->uid == atoi(row[2])) { //OWNER
+		if(perm_unix & S_IRUSR)	{
+			if(perm_unix & S_IWUSR) flag = O_RDWR;
+			else flag = O_RDONLY;
+		}
+		else {
+			if(perm_unix & S_IWUSR) flag = O_WRONLY;
+		}
+	}
+	else if(fc->gid == atoi(row[3])) { //GROUP
+		if(perm_unix & S_IRGRP)	{
+			if(perm_unix & S_IWGRP) flag = O_RDWR;
+			else flag = O_RDONLY;
+		}
+		else {
+			if(perm_unix & S_IWGRP) flag = O_WRONLY;
+		}
+	} 
+	else { //OTHER
+		if(perm_unix & S_IROTH)	{
+			if(perm_unix & S_IWOTH) flag = O_RDWR;
+			else flag = O_RDONLY;
+		}
+		else {
+			if(perm_unix & S_IWOTH) flag = O_WRONLY;
+			else {
+				//TODO: Check perm_acl string here to see if this specific uid/gid has access, set flag accordingly
+			}
+		}
+	}
+
+	freePathStruct(ps);
+	
+	fprintf(stdout, "flag is %x\n", flag);
+	fflush(stdout);
+
+	if(flag == -1)
+		return -EACCES;
+	
 	return 0;
 }
 
