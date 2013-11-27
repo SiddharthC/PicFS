@@ -10,11 +10,11 @@ MOUNT_DIR = picFS/
 
 all:
 	$(CC) $(WALL) $(CCFLAG) $(FUSE_USE) $(D64_FLAG) picFS.c -o picFS.o $(MYSQL_FLAG) $(FUSE_FLAG)
-	./picFS.o $(MOUNT_DIR)
+	./picFS.o $(MOUNT_DIR) -o allow_other
 
 debug:
 	$(CC) $(WALL) $(CCFLAG) $(FUSE_USE) $(D64_FLAG) picFS.c -o picFS.o $(MYSQL_FLAG) $(FUSE_FLAG)
-	./picFS.o $(MOUNT_DIR) -d
+	./picFS.o $(MOUNT_DIR) -d -o allow_other
 
 clean:
 	rm -f *.o

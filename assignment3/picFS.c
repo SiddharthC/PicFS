@@ -2,8 +2,6 @@
 
 #define TIME (int)time(NULL)
 
-FILE *log_file;
-
 //******************************************************************************//
 //  *************************  HANDLER FUNCTIONS  ****************************  //
 //******************************************************************************//
@@ -177,9 +175,9 @@ static int picFS_create(const char *path, mode_t mode, struct fuse_file_info *fi
 
 	struct fuse_context *fc = fuse_get_context();
 
-	char query[QUERY_LENGTH];  //TODO REMOVE TEST SIZE/FILE_DATA
+	char query[QUERY_LENGTH];
 	sprintf(query,  "INSERT INTO file_table (file_name, path, perm_unix, perm_acl, owner, gid, size, file_data, nlink, " 
-			"ctime, mtime) VALUES (\"%s\", \"%s\", %u, \"\", %d, %d, 9, \"TEST DATA\", 1, %d, %d);", 
+			"ctime, mtime) VALUES (\"%s\", \"%s\", %u, \"\", %d, %d, 0, \"\", 1, %d, %d);", 
 			file_name, parent_path, mode, fc->uid, fc->gid, TIME, TIME);
 	if (mysql_query(con, query)){
 		mysql_close(con);
@@ -303,8 +301,10 @@ static int picFS_readdir(const char *path, void *buf, fuse_fill_dir_t filler, of
 		exit(1);	
 	}
 
+	struct fuse_context *fc = fuse_get_context();
 	MYSQL_ROW row;
 	while((row = mysql_fetch_row(result))){
+		//TODO Check if user has access... possibly call open function.
 		filler(buf, row[0], NULL, 0);
 	}
 
@@ -362,7 +362,7 @@ static int picFS_open(const char *path, struct fuse_file_info *fi) {
 		else {
 			if(perm_unix & S_IWOTH) flag = O_WRONLY;
 			else {
-				//Check ACL
+				//TODO: Check perm_acl string here to see if this specific uid/gid has access, set flag accordingly
 			}
 		}
 	}
@@ -378,44 +378,34 @@ static int picFS_open(const char *path, struct fuse_file_info *fi) {
 //4MB File Buffer
 char file_buffer[MAX_FILE_SIZE];
 int file_size;
-int buff_lock;
 
 static int picFS_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi) {
 	if(size == 0 || offset < 0)
 		return 0;
 	
 	char *temp_buffer;
-
-	//If first call
-//	if(buff_lock == 0) {
-//		buff_lock = 1;
-		path_struct *ps = parsePath(path);
-		char file_name[MAX_FILENAME_LENGTH];
-		strncpy(file_name, ps->path_parts[ps->depth - 1], MAX_FILENAME_LENGTH);
-		char parent_path[MAX_PATH_LENGTH];
-		getParentPath(ps, parent_path);
+	path_struct *ps = parsePath(path);
+	char file_name[MAX_FILENAME_LENGTH];
+	strncpy(file_name, ps->path_parts[ps->depth - 1], MAX_FILENAME_LENGTH);
+	char parent_path[MAX_PATH_LENGTH];
+	getParentPath(ps, parent_path);
 	
-		//TODO DECRYPT!
-		char query[QUERY_LENGTH];
-		sprintf(query,  "SELECT file_data, size FROM file_table WHERE path=\"%s\" AND file_name=\"%s\";",
-			parent_path, file_name);
-		if (mysql_query(con, query)){
-			mysql_close(con);
-			exit(1);
-		}
-		MYSQL_RES *result = mysql_store_result(con);
-		MYSQL_ROW row = mysql_fetch_row(result);
-
-		//Allocating temporary buffer
-		temp_buffer = (char *)calloc(MAX_FILE_SIZE, sizeof(char));
-
-		strcpy(temp_buffer, row[0]);
-		fprintf(stdout, "----------------------------file buffer is %s\n", temp_buffer);
-		file_size = atoi(row[1]);
-		fprintf(stdout, "----------------------------file_size is %u\n", file_size);
-		freePathStruct(ps);
-		fflush(stdout);
-//	}
+	//TODO DECRYPT!
+	char query[QUERY_LENGTH];
+	sprintf(query,  "SELECT file_data, size FROM file_table WHERE path=\"%s\" AND file_name=\"%s\";",
+		parent_path, file_name);
+	if (mysql_query(con, query)){
+		mysql_close(con);
+		exit(1);
+	}
+	MYSQL_RES *result = mysql_store_result(con);
+	MYSQL_ROW row = mysql_fetch_row(result);
+	
+	//Allocating temporary buffer
+	temp_buffer = (char *)calloc(MAX_FILE_SIZE, sizeof(char));
+	strcpy(temp_buffer, row[0]);
+	file_size = atoi(row[1]);
+	freePathStruct(ps);
 	
    	 if (offset < file_size-1) {
 		if (size > file_size)
@@ -426,7 +416,6 @@ static int picFS_read(const char *path, char *buf, size_t size, off_t offset, st
 		return size;
     	} 
     	else {
-		buff_lock = 0;
 		file_size = 0;
 		return 0;
 	}
@@ -447,10 +436,11 @@ static int picFS_write(const char *path, const char *buf, size_t size, off_t off
 	
 	//TODO ENCRYPT!
 	if(offset == 0) {
-		sprintf(query,  "UPDATE file_table SET file_data=\"%s\", size=%d WHERE path=\"%s\" AND file_name=\"%s\";",
+		sprintf(query,  "UPDATE file_table SET file_data=\"%s\", size=%zu WHERE path=\"%s\" AND file_name=\"%s\";",
 			buf, size, parent_path, file_name);
 	}
 	else {
+		//TODO DECRYPT!
 		sprintf(query,  "SELECT file_data, size FROM file_table WHERE path=\"%s\" AND file_name=\"%s\";",
 			parent_path, file_name);
 		if (mysql_query(con, query)){
@@ -473,10 +463,9 @@ static int picFS_write(const char *path, const char *buf, size_t size, off_t off
 		if((offset + size) > file_size)
 			file_size = offset + size;
 		
-		//Write a new buffer
-		sprintf(query,  "UPDATE file_table SET file_data=\"%s\", size=%d "
-			"WHERE path=\"%s\" AND file_name=\"%s\";",
-			temp_buffer, file_size, parent_path, file_name);
+		//TODO ENCRYPT!
+		sprintf(query,  "UPDATE file_table SET file_data=\"%s\", size=%d WHERE path=\"%s\" AND file_name=\"%s\";",
+				temp_buffer, file_size, parent_path, file_name);
 	}
 	if (mysql_query(con, query)){
 		mysql_close(con);
@@ -486,15 +475,17 @@ static int picFS_write(const char *path, const char *buf, size_t size, off_t off
 	return size ;
 }
 
+//Command Line -> setfattr -n u:501:rw -h picFS/filepath
 static int picFS_setxattr(const char *path, const char *attr, const char *input, size_t input_size, int flags){
+	fprintf(stdout, "IN SETXATTR: attr = %s\n", attr);
+	//TODO append attr to the perm_acl string for the specific file
 	return 0;
 }
 
-static int picFS_getxattr(const char *path, const char *attr, char *output, size_t output_size){
-	return 0;
-}
-
+//Command Line -> setfattr -x u:501:rw -h picFS/filepath
 static int picFS_removexattr(const char *path, const char *attr){
+	fprintf(stdout, "IN REMOVEXATTR: attr = %s\n", attr);
+	//TODO search through perm_acl string and remove attr if it is present
 	return 0;
 }
 
@@ -502,6 +493,11 @@ static int picFS_removexattr(const char *path, const char *attr){
 /*****************************************************************************/
 /*****************************************************************************/
 static int picFS_access(const char* path, int flags) {
+	//DOES NOT NEED IMPLEMENT
+	return 0;
+}
+
+static int picFS_getxattr(const char *path, const char *attr, char *output, size_t output_size){
 	//DOES NOT NEED IMPLEMENT
 	return 0;
 }
