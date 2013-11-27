@@ -5,6 +5,9 @@
 //******************************************************************************//
 //  *************************  HANDLER FUNCTIONS  ****************************  //
 //******************************************************************************//
+
+//TODO opendir
+
 static int picFS_mkdir(const char *path, mode_t mode){
 	path_struct *ps = parsePath(path);
 
@@ -285,11 +288,11 @@ static int picFS_readdir(const char *path, void *buf, fuse_fill_dir_t filler, of
     	(void) offset;
     	(void) fi;
 
-    	filler(buf, ".", NULL, 0);
+	filler(buf, ".", NULL, 0);
     	filler(buf, "..", NULL, 0);
-    
+
 	char query[QUERY_LENGTH];
-	sprintf(query,  "SELECT file_name FROM file_table WHERE path=\"%s\";", path);
+	sprintf(query,  "SELECT file_name, perm_unix, perm_acl, owner, gid, nlink FROM file_table WHERE path=\"%s\";", path);
 	if (mysql_query(con, query)){
 		mysql_close(con);
 		exit(1);
@@ -304,8 +307,52 @@ static int picFS_readdir(const char *path, void *buf, fuse_fill_dir_t filler, of
 	struct fuse_context *fc = fuse_get_context();
 	MYSQL_ROW row;
 	while((row = mysql_fetch_row(result))){
-		//TODO Check if user has access... possibly call open function.
-		filler(buf, row[0], NULL, 0);
+		int nlink = atoi(row[5]);
+		if(nlink > 1){	
+			filler(buf, row[0], NULL, 0);
+			continue;
+		}
+
+		int perm_unix = atoi(row[1]);
+		char perm_acl[MAX_ACL_SIZE];
+		strcpy(perm_acl, row[2]);
+		int flag = -1;
+
+		if(fc->uid == atoi(row[3])) { //OWNER
+			if(perm_unix & S_IRUSR)	{
+				if(perm_unix & S_IWUSR) flag = O_RDWR;
+				else flag = O_RDONLY;
+			}
+			else {
+				if(perm_unix & S_IWUSR) flag = O_WRONLY;
+			}
+		}
+		else if(fc->gid == atoi(row[4])) { //GROUP
+			if(perm_unix & S_IRGRP)	{
+				if(perm_unix & S_IWGRP) flag = O_RDWR;
+				else flag = O_RDONLY;
+			}
+			else {
+				if(perm_unix & S_IWGRP) flag = O_WRONLY;
+			}
+		} 
+		else { //OTHER
+			if(perm_unix & S_IROTH)	{
+				if(perm_unix & S_IWOTH){
+					flag = O_RDWR;
+				}
+				else flag = O_RDONLY;	
+			}
+			else {
+				if(perm_unix & S_IWOTH) flag = O_WRONLY;
+				else {// TODO check acl
+				
+				}
+			}
+		}
+
+		if(flag != -1)
+			filler(buf, row[0], NULL, 0);
 	}
 
 	return 0;
@@ -367,7 +414,10 @@ static int picFS_open(const char *path, struct fuse_file_info *fi) {
 		}
 	}
 
+	fprintf(stdout, "File Name - %s, fi->flags - %x, flag - %x", file_name, fi->flags, flag);
+
 	freePathStruct(ps);
+
 	if(flag == O_RDWR) {
 		if((fi->flags&3) == O_RDONLY || (fi->flags&3) == O_WRONLY) return 0;
 	}
@@ -390,10 +440,10 @@ static int picFS_read(const char *path, char *buf, size_t size, off_t offset, st
 	char parent_path[MAX_PATH_LENGTH];
 	getParentPath(ps, parent_path);
 	
-	//TODO DECRYPT!
+	//DECRYPTION done
 	char query[QUERY_LENGTH];
-	sprintf(query,  "SELECT file_data, size FROM file_table WHERE path=\"%s\" AND file_name=\"%s\";",
-		parent_path, file_name);
+	sprintf(query,  "SELECT DECODE(file_data, \"%s\"), size FROM file_table WHERE path=\"%s\" AND file_name=\"%s\";",
+		PICFS_PASSWORD, parent_path, file_name);
 	if (mysql_query(con, query)){
 		mysql_close(con);
 		exit(1);
@@ -434,15 +484,18 @@ static int picFS_write(const char *path, const char *buf, size_t size, off_t off
 	int file_size;
 	char *temp_buffer;
 	
-	//TODO ENCRYPT!
+	//ENCRYPTION done
 	if(offset == 0) {
-		sprintf(query,  "UPDATE file_table SET file_data=\"%s\", size=%zu WHERE path=\"%s\" AND file_name=\"%s\";",
-			buf, size, parent_path, file_name);
+
+		sprintf(query,  "UPDATE file_table SET file_data=ENCODE(\"%s\",\"%s\"), size=%zu WHERE path=\"%s\" AND file_name=\"%s\";",
+			buf, PICFS_PASSWORD, size, parent_path, file_name);
+
+		//fprintf(stdout, "^^^^^^^^^^^^^^^^^^^^^^^^^^^In offset 0. Size is %d\nQuery is %s", size, query);
 	}
 	else {
-		//TODO DECRYPT!
-		sprintf(query,  "SELECT file_data, size FROM file_table WHERE path=\"%s\" AND file_name=\"%s\";",
-			parent_path, file_name);
+		//DECRYPTION done
+		sprintf(query,  "SELECT DECODE(file_data, \"%s\") , size FROM file_table WHERE path=\"%s\" AND file_name=\"%s\";",
+			PICFS_PASSWORD, parent_path, file_name);
 		if (mysql_query(con, query)){
 			mysql_close(con);
 			exit(1);
@@ -463,9 +516,9 @@ static int picFS_write(const char *path, const char *buf, size_t size, off_t off
 		if((offset + size) > file_size)
 			file_size = offset + size;
 		
-		//TODO ENCRYPT!
-		sprintf(query,  "UPDATE file_table SET file_data=\"%s\", size=%d WHERE path=\"%s\" AND file_name=\"%s\";",
-				temp_buffer, file_size, parent_path, file_name);
+		//ENCRYPTION done
+		sprintf(query,  "UPDATE file_table SET file_data=ENCODE(\"%s\", \"%s\"), size=%d WHERE path=\"%s\" AND file_name=\"%s\";",
+				temp_buffer, PICFS_PASSWORD, file_size, parent_path, file_name);
 	}
 	if (mysql_query(con, query)){
 		mysql_close(con);
