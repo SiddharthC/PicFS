@@ -13,6 +13,9 @@
 #define MAX_ACL_SIZE 1000
 #define MAX_FILE_SIZE 4194304
 #define PICFS_PASSWORD "MY_PICFS_PASSWORD"
+#define TEMP_FILE_PATH "/var/lib/mysql/.temp_file"
+
+size_t global_temp_size;
 
 //MYSQL connection pointer
 MYSQL *con;
@@ -31,6 +34,7 @@ static int picFS_setxattr(const char *, const char *, const char *, size_t, int)
 static int picFS_getxattr(const char *, const char *, char *, size_t);
 static int picFS_removexattr(const char *, const char *);
 static int picFS_create(const char *, mode_t, struct fuse_file_info *);
+static int picFS_flush(const char *, struct fuse_file_info *);
 static int picFS_access(const char *, int);
 static int picFS_unlink(const char *);
 static int picFS_utimens(const char*, const struct timespec tv[2]);
@@ -57,7 +61,8 @@ static struct fuse_operations picFS_oper = {
     .unlink 		= picFS_unlink,
     .utimens		= picFS_utimens,
     .truncate		= picFS_truncate,
-    .destroy 		= picFS_destroy
+    .destroy 		= picFS_destroy,
+    .flush		= picFS_flush
 };
 
 typedef struct path_struct_t {

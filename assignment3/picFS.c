@@ -593,10 +593,13 @@ static int picFS_write(const char *path, const char *buf, size_t size, off_t off
 	fflush(stdout);
 
 	}
-	else {/*
-		fprintf(stdout, "failed before first query\n");
+	else {
+
+		FILE *fd =NULL;
+		if(offset < 4100){
+		//fprintf(stdout, "failed before first query\n");
 		//DECRYPTION done
-		sprintf(query,  "SELECT DECODE(file_data, \"%s\") , size FROM file_table WHERE path=\"%s\" AND file_name=\"%s\";",
+		sprintf(query,  "SELECT DECODE(file_data, \"%s\"), size  FROM file_table WHERE path=\"%s\" AND file_name=\"%s\";",
 			PICFS_PASSWORD, parent_path, file_name);
 		if (mysql_query(con, query)){
 			mysql_close(con);
@@ -604,9 +607,27 @@ static int picFS_write(const char *path, const char *buf, size_t size, off_t off
 		}
 		MYSQL_RES *result = mysql_store_result(con);
 		MYSQL_ROW row = mysql_fetch_row(result);
-		temp_buffer = (char *)calloc(MAX_FILE_SIZE, sizeof(char));
+		char *temp_buffer = (char *)calloc(5000, sizeof(char));
 		strcpy(temp_buffer, row[0]);
-		file_size = atoi(row[1]);
+
+
+		fd = fopen(TEMP_FILE_PATH, "w");
+
+		
+		fwrite(temp_buffer, 1, size,fd);
+		global_temp_size +=atoi(row[1]);
+
+		fclose(fd);
+		}
+
+
+		fd = fopen(TEMP_FILE_PATH, "a");
+		fwrite(buf, 1, size, fd);
+		global_temp_size += size;
+
+		fclose(fd);
+
+/*		file_size = atoi(row[1]);
 
 		if(offset > file_size - 1 )
 			offset = 0;
@@ -623,19 +644,58 @@ static int picFS_write(const char *path, const char *buf, size_t size, off_t off
 				temp_buffer, PICFS_PASSWORD, file_size, parent_path, file_name);
 				*/
 		//ENCRYPTION done
-		sprintf(query,  "UPDATE file_table SET file_data=concat(file_data, ENCODE(\"%s\", \"%s\")), size=size+%zu WHERE path=\"%s\" AND file_name=\"%s\";",
-				buf, PICFS_PASSWORD, size, parent_path, file_name);
-	
+		//sprintf(query,  "UPDATE file_table SET file_data=concat(file_data, ENCODE(\"%s\", \"%s\")), size=size+%zu WHERE path=\"%s\" AND file_name=\"%s\";",
+		//		buf, PICFS_PASSWORD, size, parent_path, file_name);
+
+
 	}
+	if(offset==0){
 	if (mysql_real_query(con, query, QUERY_LENGTH)){
 		fprintf(stdout, "mysql connection closed\n");
 		fprintf(stdout, "The query is -- %s\n", query);
 		fflush(stdout);
 		mysql_close(con);
 		exit(1);
-	}
+	}}
 	freePathStruct(ps);
 	return size ;
+}
+
+static int picFS_flush(const char *path, struct fuse_file_info *fi){
+
+	if(global_temp_size == 0)
+		return 0;
+
+	path_struct *ps = parsePath(path);
+
+	char file_name[MAX_FILENAME_LENGTH];
+	strncpy(file_name, ps->path_parts[ps->depth - 1], MAX_FILENAME_LENGTH);
+
+	if(strcmp(file_name, "/") == 0)
+		return -EBADF;
+
+	char parent_path[MAX_PATH_LENGTH];
+	getParentPath(ps, parent_path);
+
+	char query[QUERY_LENGTH];
+	sprintf(query,  "UPDATE file_table SET file_data=ENCODE(LOAD_FILE(\"%s\"),\"%s\"), size=%zu WHERE path=\"%s\" AND file_name=\"%s\";",
+			TEMP_FILE_PATH, PICFS_PASSWORD, global_temp_size, parent_path, file_name);
+//	sprintf(query,  "UPDATE file_table SET file_data=LOAD_FILE(\"%s\"), size=%zu WHERE path=\"%s\" AND file_name=\"%s\";",
+//			TEMP_FILE_PATH, global_temp_size, parent_path, file_name);
+
+
+	global_temp_size = 0;
+//	FILE *fd;
+//	fd = fopen(TEMP_FILE_PATH, "w");
+//	fclose(fd);
+
+	if (mysql_query(con, query)){
+		mysql_close(con);
+		exit(1);
+	}
+	
+	freePathStruct(ps);
+	return 0;
 }
 
 //Command Line -> setfattr -n u:501:rw -h picFS/filepath
