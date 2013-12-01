@@ -6,8 +6,6 @@
 //  *************************  HANDLER FUNCTIONS  ****************************  //
 //******************************************************************************//
 
-//TODO opendir
-
 static int picFS_mkdir(const char *path, mode_t mode){
 	path_struct *ps = parsePath(path);
 
@@ -414,7 +412,7 @@ static int picFS_open(const char *path, struct fuse_file_info *fi) {
 		}
 	}
 
-	fprintf(stdout, "File Name - %s, fi->flags - %x, flag - %x", file_name, fi->flags, flag);
+	//fprintf(stdout, "File Name - %s, fi->flags - %x, flag - %x", file_name, fi->flags, flag);
 
 	freePathStruct(ps);
 
@@ -476,6 +474,7 @@ static int picFS_write(const char *path, const char *buf, size_t size, off_t off
 		return 0;
 
 	char query[QUERY_LENGTH];
+	memset(query, 0, QUERY_LENGTH);
 	path_struct *ps = parsePath(path);
 	char file_name[MAX_FILENAME_LENGTH];
 	strncpy(file_name, ps->path_parts[ps->depth - 1], MAX_FILENAME_LENGTH);
@@ -484,15 +483,19 @@ static int picFS_write(const char *path, const char *buf, size_t size, off_t off
 	int file_size;
 	char *temp_buffer;
 	
+	temp_buffer = (char *)  calloc((size + 1), sizeof(char));
+	mysql_real_escape_string(con, temp_buffer, buf, (size+1));
+
 	//ENCRYPTION done
 	if(offset == 0) {
 
 		sprintf(query,  "UPDATE file_table SET file_data=ENCODE(\"%s\",\"%s\"), size=%zu WHERE path=\"%s\" AND file_name=\"%s\";",
-			buf, PICFS_PASSWORD, size, parent_path, file_name);
+			temp_buffer, PICFS_PASSWORD, size, parent_path, file_name);
 
-		//fprintf(stdout, "^^^^^^^^^^^^^^^^^^^^^^^^^^^In offset 0. Size is %d\nQuery is %s", size, query);
+
 	}
-	else {
+	else {/*
+		fprintf(stdout, "failed before first query\n");
 		//DECRYPTION done
 		sprintf(query,  "SELECT DECODE(file_data, \"%s\") , size FROM file_table WHERE path=\"%s\" AND file_name=\"%s\";",
 			PICFS_PASSWORD, parent_path, file_name);
@@ -515,12 +518,21 @@ static int picFS_write(const char *path, const char *buf, size_t size, off_t off
 			file_size = size;
 		if((offset + size) > file_size)
 			file_size = offset + size;
-		
+
+		fprintf(stdout, "Failed before second query\n");
 		//ENCRYPTION done
-		sprintf(query,  "UPDATE file_table SET file_data=ENCODE(\"%s\", \"%s\"), size=%d WHERE path=\"%s\" AND file_name=\"%s\";",
+		sprintf(query,  "UPDATE file_table SET file_data=ENCODE(\"%s\", \"%s\"), size=size+%d WHERE path=\"%s\" AND file_name=\"%s\";",
 				temp_buffer, PICFS_PASSWORD, file_size, parent_path, file_name);
+				*/
+		//ENCRYPTION done
+		sprintf(query,  "UPDATE file_table SET file_data=concat(file_data, ENCODE(\"%s\", \"%s\")), size=size+%d WHERE path=\"%s\" AND file_name=\"%s\";",
+				temp_buffer, PICFS_PASSWORD, size, parent_path, file_name);
+	
 	}
-	if (mysql_query(con, query)){
+	if (mysql_real_query(con, query, QUERY_LENGTH)){
+		fprintf(stdout, "mysql connection closed\n");
+		fprintf(stdout, "The query is -- %s\n", query);
+		fflush(stdout);
 		mysql_close(con);
 		exit(1);
 	}
@@ -704,7 +716,7 @@ path_struct * parsePath(const char* path) {
 	if(!strcmp(path,"/"))
 		return ps;
 	
-	tmp = strtok(path, "/");
+	tmp = strtok((char *) path, "/");
 	while(tmp != NULL) {
 		ps->path_parts[ps->depth] = (char*)malloc(MAX_FILENAME_LENGTH*sizeof(char));
 		strcpy(ps->path_parts[ps->depth++],tmp);

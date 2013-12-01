@@ -7,9 +7,9 @@
 #include <stdlib.h>
 #include <time.h>
 
-#define MAX_FILENAME_LENGTH 30
+#define MAX_FILENAME_LENGTH 100
 #define MAX_PATH_LENGTH 1000
-#define QUERY_LENGTH 3000
+#define QUERY_LENGTH 4300
 #define MAX_ACL_SIZE 1000
 #define MAX_FILE_SIZE 4194304
 #define PICFS_PASSWORD "MY_PICFS_PASSWORD"
