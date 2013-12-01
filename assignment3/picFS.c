@@ -576,17 +576,21 @@ static int picFS_write(const char *path, const char *buf, size_t size, off_t off
 	char parent_path[MAX_PATH_LENGTH];
 	getParentPath(ps, parent_path);
 	int file_size;
-	char *temp_buffer;
+//	char *temp_buffer;
 	
-	temp_buffer = (char *)  calloc((size + 1), sizeof(char));
-	mysql_real_escape_string(con, temp_buffer, buf, (size+1));
+//	temp_buffer = (char *)  calloc((size * 2), sizeof(char));
+//	mysql_real_escape_string(con, temp_buffer, buf, (size+1));
+
+	//fprintf(stdout, "----------------In write - size - %zu, offset - %d\n", size, offset);
+	//fflush(stdout);
 
 	//ENCRYPTION done
 	if(offset == 0) {
 
 		sprintf(query,  "UPDATE file_table SET file_data=ENCODE(\"%s\",\"%s\"), size=%zu WHERE path=\"%s\" AND file_name=\"%s\";",
-			temp_buffer, PICFS_PASSWORD, size, parent_path, file_name);
-
+			buf, PICFS_PASSWORD, size, parent_path, file_name);
+	fprintf(stdout, "Query is - %s\n", query);
+	fflush(stdout);
 
 	}
 	else {/*
@@ -619,8 +623,8 @@ static int picFS_write(const char *path, const char *buf, size_t size, off_t off
 				temp_buffer, PICFS_PASSWORD, file_size, parent_path, file_name);
 				*/
 		//ENCRYPTION done
-		sprintf(query,  "UPDATE file_table SET file_data=concat(file_data, ENCODE(\"%s\", \"%s\")), size=size+%d WHERE path=\"%s\" AND file_name=\"%s\";",
-				temp_buffer, PICFS_PASSWORD, size, parent_path, file_name);
+		sprintf(query,  "UPDATE file_table SET file_data=concat(file_data, ENCODE(\"%s\", \"%s\")), size=size+%zu WHERE path=\"%s\" AND file_name=\"%s\";",
+				buf, PICFS_PASSWORD, size, parent_path, file_name);
 	
 	}
 	if (mysql_real_query(con, query, QUERY_LENGTH)){
