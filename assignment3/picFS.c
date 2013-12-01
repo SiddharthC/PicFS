@@ -5,7 +5,6 @@
 //******************************************************************************//
 //  *************************  HANDLER FUNCTIONS  ****************************  //
 //******************************************************************************//
-
 static int picFS_mkdir(const char *path, mode_t mode){
 	path_struct *ps = parsePath(path);
 
@@ -22,15 +21,14 @@ static int picFS_mkdir(const char *path, mode_t mode){
 
 	char query[QUERY_LENGTH];
 	sprintf(query,  "INSERT INTO file_table (file_name, path, perm_unix, perm_acl, owner, gid, size, file_data, nlink, " 
-			"ctime, mtime) VALUES (\"%s\", \"%s\", %u, \"\", %d, %d, 4096, \"Directory\", 2, %d, %d);", 
-			file_name, parent_path, mode | S_IFDIR, fc->uid, fc->gid, TIME, TIME);
+			"ctime, mtime) VALUES (\"%s\", \"%s\", %d, \"\", %d, %d, 4096, \"Directory\", 2, %d, %d);", 
+			file_name, parent_path, mode|S_IFDIR, fc->uid, fc->gid, TIME, TIME);
 	
 	if (mysql_query(con, query)){
 		mysql_close(con);
 		exit(1);
 	}
 
-	//UPDATE PARENT DIRECTORY NLINK + 1
 	path_struct *ps1 = parsePath(parent_path);
 	if(ps1->depth == 0) {
 		sprintf(query,  "UPDATE file_table SET nlink = nlink + 1 WHERE file_name=\"/\";"); 
@@ -54,7 +52,6 @@ static int picFS_mkdir(const char *path, mode_t mode){
 }
 
 static int picFS_rmdir(const char *path){
-	//Check if any files in this Directory
 	char query[QUERY_LENGTH];
 	sprintf(query, "SELECT COUNT(*) FROM file_table WHERE path=\"%s\";", path);	
 	if (mysql_query(con, query)){
@@ -83,7 +80,6 @@ static int picFS_rmdir(const char *path){
 		exit(1);
 	}
 
-	//UPDATE PARENT DIRECTORY NLINK - 1
 	path_struct *ps1 = parsePath(parent_path);
 	if(ps1->depth == 0) {
 		sprintf(query,  "UPDATE file_table SET nlink = nlink - 1 WHERE file_name=\"/\";"); 
@@ -127,7 +123,7 @@ static int picFS_rename(const char *path, const char *name){
 	MYSQL_RES *result = mysql_store_result(con);
 	MYSQL_ROW row = mysql_fetch_row(result);
 
-	if(atoi(row[0]) & S_IFREG) { //FILE
+	if(atoi(row[0]) & S_IFREG) {
 		sprintf(query, "UPDATE file_table SET file_name=\"%s\", mtime=%d WHERE file_name=\"%s\" AND path=\"%s\";",
 			name+1, TIME, file_name, parent_path);
 		if (mysql_query(con, query)){
@@ -144,6 +140,7 @@ static int picFS_chmod(const char *path, mode_t mode){
 	if(strcmp(path, "/") == 0)
 		return -EBADF;
 	
+	struct fuse_context *fc = fuse_get_context();
 	path_struct *ps = parsePath(path);
 	char file_name[MAX_FILENAME_LENGTH];
 	strncpy(file_name, ps->path_parts[ps->depth - 1], MAX_FILENAME_LENGTH);
@@ -151,6 +148,17 @@ static int picFS_chmod(const char *path, mode_t mode){
 	getParentPath(ps, parent_path);
 	
 	char query[QUERY_LENGTH];
+	sprintf(query,  "SELECT owner FROM file_table WHERE file_name=\"%s\" AND path=\"%s\";",
+			file_name, parent_path);
+	if (mysql_query(con, query)){
+		mysql_close(con);
+		exit(1);
+	}
+	MYSQL_RES *result = mysql_store_result(con);
+	MYSQL_ROW row = mysql_fetch_row(result);
+	if(fc->uid != atoi(row[0]))
+		return -EACCES;
+	
 	sprintf(query, "UPDATE  file_table SET perm_unix = %d, mtime=%d WHERE file_name=\"%s\" AND path=\"%s\";",
 			mode, TIME,  file_name, parent_path);	
 	if (mysql_query(con, query)){
@@ -179,7 +187,7 @@ static int picFS_create(const char *path, mode_t mode, struct fuse_file_info *fi
 	char query[QUERY_LENGTH];
 	sprintf(query,  "INSERT INTO file_table (file_name, path, perm_unix, perm_acl, owner, gid, size, file_data, nlink, " 
 			"ctime, mtime) VALUES (\"%s\", \"%s\", %u, \"\", %d, %d, 0, \"\", 1, %d, %d);", 
-			file_name, parent_path, mode, fc->uid, fc->gid, TIME, TIME);
+			file_name, parent_path, mode|S_IFREG, fc->uid, fc->gid, TIME, TIME);
 	if (mysql_query(con, query)){
 		mysql_close(con);
 		exit(1);
@@ -195,10 +203,22 @@ static int picFS_unlink(const char * path) {
 	char file_name[MAX_FILENAME_LENGTH];
 	strncpy(file_name, ps->path_parts[ps->depth - 1], MAX_FILENAME_LENGTH);
 
+	struct fuse_context *fc = fuse_get_context();
 	char parent_path[MAX_PATH_LENGTH];
 	getParentPath(ps, parent_path);
 
 	char query[QUERY_LENGTH];
+	sprintf(query,  "SELECT owner FROM file_table WHERE file_name=\"%s\" AND path=\"%s\";",
+			file_name, parent_path);
+	if (mysql_query(con, query)){
+		mysql_close(con);
+		exit(1);
+	}
+	MYSQL_RES *result = mysql_store_result(con);
+	MYSQL_ROW row = mysql_fetch_row(result);
+	if(fc->uid != atoi(row[0]))
+		return -EACCES;
+	
 	sprintf(query,  "DELETE FROM file_table WHERE file_name=\"%s\" AND path=\"%s\";",
 			file_name, parent_path);
 	if (mysql_query(con, query)){
@@ -305,12 +325,6 @@ static int picFS_readdir(const char *path, void *buf, fuse_fill_dir_t filler, of
 	struct fuse_context *fc = fuse_get_context();
 	MYSQL_ROW row;
 	while((row = mysql_fetch_row(result))){
-		int nlink = atoi(row[5]);
-		if(nlink > 1){	
-			filler(buf, row[0], NULL, 0);
-			continue;
-		}
-
 		int perm_unix = atoi(row[1]);
 		char perm_acl[MAX_ACL_SIZE];
 		strcpy(perm_acl, row[2]);
@@ -343,12 +357,55 @@ static int picFS_readdir(const char *path, void *buf, fuse_fill_dir_t filler, of
 			}
 			else {
 				if(perm_unix & S_IWOTH) flag = O_WRONLY;
-				else {// TODO check acl
+				else {
+					char p[6];
+					char u[15], ui[7], *up;
+					char g[15], gi[7], *gp;
+					int ulen, glen;
+					int i = 0;
 				
+					strcpy(u, "u:");
+					sprintf(ui, "%d", fc->uid);
+					strcat(u, ui);
+					ulen = strlen(u);
+				
+					strcpy(g, "g:");
+					sprintf(gi, "%d", fc->gid);
+					strcat(g, gi);
+					glen = strlen(g);
+
+					if((up=strstr(perm_acl, u)) != NULL) {
+						while(up[0] != '|') {
+							p[i++] = up[0];
+							up++;
+						}
+					}
+
+					if((gp=strstr(perm_acl, g)) != NULL) {
+						while(gp[0] != '|') {
+							p[i++] = gp[0];
+							gp++;
+						}
+					}
+
+					if(strlen(p) > 0) {
+						if(strchr(p, 'r')) {
+							if(strchr(p,'w'))
+								flag = O_RDWR;
+							else
+								flag = O_RDONLY;
+						}
+						else {
+							if(strchr(p, 'w')) {
+								flag = O_WRONLY;
+							}
+						}
+					}
 				}
+			
 			}
 		}
-
+		
 		if(flag != -1)
 			filler(buf, row[0], NULL, 0);
 	}
@@ -407,7 +464,48 @@ static int picFS_open(const char *path, struct fuse_file_info *fi) {
 		else {
 			if(perm_unix & S_IWOTH) flag = O_WRONLY;
 			else {
-				//TODO: Check perm_acl string here to see if this specific uid/gid has access, set flag accordingly
+				char p[6];
+				char u[15], ui[7], *up;
+				char g[15], gi[7], *gp;
+				int ulen, glen;
+				int i = 0;
+				
+				strcpy(u, "u:");
+				sprintf(ui, "%d", fc->uid);
+				strcat(u, ui);
+				ulen = strlen(u);
+				
+				strcpy(g, "g:");
+				sprintf(gi, "%d", fc->gid);
+				strcat(g, gi);
+				glen = strlen(g);
+
+				if((up=strstr(perm_acl, u)) != NULL) {
+					while(up[0] != '|') {
+						p[i++] = up[0];
+						up++;
+					}
+				}
+
+				if((gp=strstr(perm_acl, g)) != NULL) {
+					while(gp[0] != '|') {
+						p[i++] = gp[0];
+						gp++;
+					}
+				}
+				
+				if(strlen(p) > 0) {
+					if(strchr(p, 'r')) {
+						if(strchr(p,'w'))
+							flag = O_RDWR;
+						else
+							flag = O_RDONLY;
+					}
+					else {
+						if(strchr(p,'w'))
+							flag = O_WRONLY;
+					}
+				}
 			}
 		}
 	}
@@ -415,7 +513,6 @@ static int picFS_open(const char *path, struct fuse_file_info *fi) {
 	//fprintf(stdout, "File Name - %s, fi->flags - %x, flag - %x", file_name, fi->flags, flag);
 
 	freePathStruct(ps);
-
 	if(flag == O_RDWR) {
 		if((fi->flags&3) == O_RDONLY || (fi->flags&3) == O_WRONLY) return 0;
 	}
@@ -438,7 +535,6 @@ static int picFS_read(const char *path, char *buf, size_t size, off_t offset, st
 	char parent_path[MAX_PATH_LENGTH];
 	getParentPath(ps, parent_path);
 	
-	//DECRYPTION done
 	char query[QUERY_LENGTH];
 	sprintf(query,  "SELECT DECODE(file_data, \"%s\"), size FROM file_table WHERE path=\"%s\" AND file_name=\"%s\";",
 		PICFS_PASSWORD, parent_path, file_name);
@@ -449,7 +545,6 @@ static int picFS_read(const char *path, char *buf, size_t size, off_t offset, st
 	MYSQL_RES *result = mysql_store_result(con);
 	MYSQL_ROW row = mysql_fetch_row(result);
 	
-	//Allocating temporary buffer
 	temp_buffer = (char *)calloc(MAX_FILE_SIZE, sizeof(char));
 	strcpy(temp_buffer, row[0]);
 	file_size = atoi(row[1]);
@@ -509,7 +604,6 @@ static int picFS_write(const char *path, const char *buf, size_t size, off_t off
 		strcpy(temp_buffer, row[0]);
 		file_size = atoi(row[1]);
 
-		//Make the new buffer
 		if(offset > file_size - 1 )
 			offset = 0;
 		strcpy(temp_buffer + offset, buf );
@@ -542,21 +636,112 @@ static int picFS_write(const char *path, const char *buf, size_t size, off_t off
 
 //Command Line -> setfattr -n u:501:rw -h picFS/filepath
 static int picFS_setxattr(const char *path, const char *attr, const char *input, size_t input_size, int flags){
-	fprintf(stdout, "IN SETXATTR: attr = %s\n", attr);
-	//TODO append attr to the perm_acl string for the specific file
+	if(strstr(attr, ":") == NULL) { //If not ours
+		return 0;
+	}
+	if(!(attr[0] == 'u' || attr[0] == 'g')) {
+		return 0;
+	}
+
+	struct fuse_context *fc = fuse_get_context();
+	char query[QUERY_LENGTH];
+	path_struct *ps = parsePath(path);
+	char file_name[MAX_FILENAME_LENGTH];
+	strncpy(file_name, ps->path_parts[ps->depth - 1], MAX_FILENAME_LENGTH);
+	char parent_path[MAX_PATH_LENGTH];
+	getParentPath(ps, parent_path);
+	
+	sprintf(query,  "SELECT perm_acl, owner FROM file_table WHERE path=\"%s\" AND file_name=\"%s\";",
+			parent_path, file_name);
+	if (mysql_query(con, query)){
+		mysql_close(con);
+		exit(1);
+	}
+	MYSQL_RES *result = mysql_store_result(con);
+	MYSQL_ROW row = mysql_fetch_row(result);
+	
+	if(fc->uid != atoi(row[1]))
+		return -EACCES;
+
+	char acl[1000];
+	strcpy(acl, row[0]);
+	char new[15];
+	strcpy(new, attr);
+	strcat(new, "|");
+
+	if(strlen(acl) != 0) {
+		if(strstr(acl, attr) != NULL) {
+			return 0;
+		}
+	}
+
+	sprintf(query,  "UPDATE file_table SET perm_acl = Concat(perm_acl, \"%s\") WHERE path=\"%s\" AND file_name=\"%s\";",
+			new, parent_path, file_name);
+	if (mysql_query(con, query)){
+		mysql_close(con);
+		exit(1);
+	}
+	freePathStruct(ps);
 	return 0;
 }
 
 //Command Line -> setfattr -x u:501:rw -h picFS/filepath
 static int picFS_removexattr(const char *path, const char *attr){
-	fprintf(stdout, "IN REMOVEXATTR: attr = %s\n", attr);
-	//TODO search through perm_acl string and remove attr if it is present
+	if(strstr(attr, ":") == NULL) { //If not ours
+		return 0;
+	}
+	if(!(attr[0] == 'u' || attr[0] == 'g')) {
+		return 0;
+	}
+
+	struct fuse_context *fc = fuse_get_context();
+	char query[QUERY_LENGTH];
+	path_struct *ps = parsePath(path);
+	char file_name[MAX_FILENAME_LENGTH];
+	strncpy(file_name, ps->path_parts[ps->depth - 1], MAX_FILENAME_LENGTH);
+	char parent_path[MAX_PATH_LENGTH];
+	getParentPath(ps, parent_path);
+	
+	sprintf(query,  "SELECT perm_acl, owner FROM file_table WHERE path=\"%s\" AND file_name=\"%s\";",
+			parent_path, file_name);
+	if (mysql_query(con, query)){
+		mysql_close(con);
+		exit(1);
+	}
+	MYSQL_RES *result = mysql_store_result(con);
+	MYSQL_ROW row = mysql_fetch_row(result);
+	
+	if(fc->uid != atoi(row[1]))
+		return -EACCES;
+
+	char acl[1000];
+	strcpy(acl, row[0]);
+	char new[15];
+	strcpy(new, attr);
+	strcat(new, "|");
+	char *p; int len;
+
+	if((len=strlen(acl)) == 0 || (p=strstr(acl, new)) == NULL) {
+		return 0;
+	}
+
+	int len_new = strlen(new);
+	char *dest = p;
+	char *source = p+len_new;
+	int cpylen =  len - (int)(p-acl) - len_new;
+	memmove(dest, source, cpylen);
+	acl[len-len_new] = '\0';
+
+	sprintf(query,  "UPDATE file_table SET perm_acl = \"%s\" WHERE path=\"%s\" AND file_name=\"%s\";",
+			acl, parent_path, file_name);
+	if (mysql_query(con, query)){
+		mysql_close(con);
+		exit(1);
+	}
+	freePathStruct(ps);
 	return 0;
 }
 
-/*****************************************************************************/
-/*****************************************************************************/
-/*****************************************************************************/
 static int picFS_access(const char* path, int flags) {
 
 	if(path[1] == '\0')
@@ -612,22 +797,72 @@ static int picFS_access(const char* path, int flags) {
 		else {
 			if(perm_unix & S_IWOTH) flag = O_WRONLY;
 			else {
-				//TODO: Check perm_acl string here to see if this specific uid/gid has access, set flag accordingly
+				char p[6];
+				char u[15], ui[7], *up;
+				char g[15], gi[7], *gp;
+				int ulen, glen;
+				int i = 0;
+				
+				strcpy(u, "u:");
+				sprintf(ui, "%d", fc->uid);
+				strcat(u, ui);
+				ulen = strlen(u);
+				
+				strcpy(g, "g:");
+				sprintf(gi, "%d", fc->gid);
+				strcat(g, gi);
+				glen = strlen(g);
+
+				if((up=strstr(perm_acl, u)) != NULL) {
+					while(up[0] != '|') {
+						p[i++] = up[0];
+						up++;
+					}
+				}
+
+				if((gp=strstr(perm_acl, g)) != NULL) {
+					while(gp[0] != '|') {
+						p[i++] = gp[0];
+						gp++;
+					}
+				}
+
+				if(strlen(p) > 0) {
+					if(strchr(p, 'r')) {
+						if(strchr(p,'w'))
+							flag = O_RDWR;
+						else
+							flag = O_RDONLY;
+					}
+					else {
+						if(strchr(p,'w'))
+							flag = O_WRONLY;
+					}
+				}
 			}
 		}
 	}
 
 	freePathStruct(ps);
 	
-	fprintf(stdout, "flag is %x\n", flag);
-	fflush(stdout);
-
 	if(flag == -1)
+		return -EACCES;
+
+	if(flags == 2 && flag != O_RDWR)
+		return -EACCES;
+
+	if(flags == 1 && flag == O_RDONLY)
+		return -EACCES;
+
+	if(flags == 0 && flag == O_WRONLY)
 		return -EACCES;
 	
 	return 0;
 }
 
+/*****************************************************************************/
+/*****************************************************************************/
+/*****************************************************************************/
 static int picFS_getxattr(const char *path, const char *attr, char *output, size_t output_size){
 	//DOES NOT NEED IMPLEMENT
 	return 0;
