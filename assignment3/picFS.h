@@ -16,6 +16,7 @@
 #define TEMP_FILE_PATH "/var/lib/mysql/.temp_file"
 
 size_t global_temp_size;
+size_t global_temp_size2;
 
 //MYSQL connection pointer
 MYSQL *con;

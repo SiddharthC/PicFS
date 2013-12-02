@@ -535,6 +535,11 @@ static int picFS_read(const char *path, char *buf, size_t size, off_t offset, st
 	char parent_path[MAX_PATH_LENGTH];
 	getParentPath(ps, parent_path);
 	
+	FILE *fd;
+
+	if(offset < 4100){
+	fd = fopen(TEMP_FILE_PATH, "wb");
+
 	char query[QUERY_LENGTH];
 	sprintf(query,  "SELECT DECODE(file_data, \"%s\"), size FROM file_table WHERE path=\"%s\" AND file_name=\"%s\";",
 		PICFS_PASSWORD, parent_path, file_name);
@@ -545,23 +550,20 @@ static int picFS_read(const char *path, char *buf, size_t size, off_t offset, st
 	MYSQL_RES *result = mysql_store_result(con);
 	MYSQL_ROW row = mysql_fetch_row(result);
 	
-	temp_buffer = (char *)calloc(MAX_FILE_SIZE, sizeof(char));
-	strcpy(temp_buffer, row[0]);
-	file_size = atoi(row[1]);
+	global_temp_size2 =  atoi(row[1]);
 	freePathStruct(ps);
-	
-   	 if (offset < file_size-1) {
-		if (size > file_size)
-			size = file_size;
-		if (offset + size > file_size)
-			size = file_size-offset;
-		memcpy(buf, temp_buffer + offset, size);
-		return size;
-    	} 
-    	else {
-		file_size = 0;
-		return 0;
+	fwrite(row[0], 1, global_temp_size2, fd);
+	fclose(fd);
 	}
+
+	fd = fopen(TEMP_FILE_PATH, "rb");
+	fseek(fd, offset,SEEK_SET);
+	fread(buf, 1, size, fd);
+	fclose(fd);
+
+	global_temp_size2 -= size;
+
+	return size;
 }
 
 static int picFS_write(const char *path, const char *buf, size_t size, off_t offset, struct fuse_file_info *fi) {
