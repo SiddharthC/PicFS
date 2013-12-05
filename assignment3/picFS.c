@@ -363,18 +363,15 @@ static int picFS_readdir(const char *path, void *buf, fuse_fill_dir_t filler, of
 					char p[6];
 					char u[15], ui[7], *up;
 					char g[15], gi[7], *gp;
-					//int ulen, glen;
 					int i = 0;
 				
 					strcpy(u, "u:");
 					sprintf(ui, "%d", fc->uid);
 					strcat(u, ui);
-//					ulen = strlen(u);
 				
 					strcpy(g, "g:");
 					sprintf(gi, "%d", fc->gid);
 					strcat(g, gi);
-					//glen = strlen(g);
 
 					if((up=strstr(perm_acl, u)) != NULL) {
 						while(up[0] != '|') {
@@ -469,18 +466,15 @@ static int picFS_open(const char *path, struct fuse_file_info *fi) {
 				char p[6];
 				char u[15], ui[7], *up;
 				char g[15], gi[7], *gp;
-//				int ulen, glen;
 				int i = 0;
 				
 				strcpy(u, "u:");
 				sprintf(ui, "%d", fc->uid);
 				strcat(u, ui);
-//				ulen = strlen(u);
 				
 				strcpy(g, "g:");
 				sprintf(gi, "%d", fc->gid);
 				strcat(g, gi);
-//				glen = strlen(g);
 
 				if((up=strstr(perm_acl, u)) != NULL) {
 					while(up[0] != '|') {
@@ -512,8 +506,6 @@ static int picFS_open(const char *path, struct fuse_file_info *fi) {
 		}
 	}
 
-	//fprintf(stdout, "File Name - %s, fi->flags - %x, flag - %x", file_name, fi->flags, flag);
-
 	freePathStruct(ps);
 	if(flag == O_RDWR) {
 		if((fi->flags&3) == O_RDONLY || (fi->flags&3) == O_WRONLY) return 0;
@@ -537,10 +529,7 @@ static int picFS_read(const char *path, char *buf, size_t size, off_t offset, st
 	char parent_path[MAX_PATH_LENGTH];
 	getParentPath(ps, parent_path);
 	
-	//FILE *fd;
-
 	if(offset == 0){
-	//fd = fopen(TEMP_FILE_PATH, "wb");
 
 	char query[QUERY_LENGTH];
 	sprintf(query,  "SELECT DECODE(file_data, \"%s\"), size FROM file_table WHERE path=\"%s\" AND file_name=\"%s\";",
@@ -556,20 +545,8 @@ static int picFS_read(const char *path, char *buf, size_t size, off_t offset, st
 	freePathStruct(ps);
 	memset(file_buffer, 0, MAX_FILE_SIZE);
 	memcpy(file_buffer, row[0], global_temp_size2);
-	fprintf(stdout, "----------------------------global_temp_size2 is %d file buffer is %s\n", global_temp_size2, file_buffer);
-	fflush(stdout);
-	//fwrite(row[0], 1, global_temp_size2, fd);
-	//fclose(fd);
 	}
-
-	//fd = fopen(TEMP_FILE_PATH, "rb");
-	//fseek(fd, offset,SEEK_SET);
-	//fread(buf, 1, size, fd);
-	//fclose(fd);
 	memcpy(buf, file_buffer + offset, size);
-	fprintf(stdout, "-----------------------------size is %d Buffer before returning is %s\n", size, buf);
-	fflush(stdout);
-
 	global_temp_size2 -= size;
 
 	return size;
@@ -588,29 +565,8 @@ static int picFS_write(const char *path, const char *buf, size_t size, off_t off
 	getParentPath(ps, parent_path);
 	int file_size;
 
-	//ENCRYPTION done
-//	if(offset == 0) {
-//
-//		sprintf(query,  "UPDATE file_table SET file_data=ENCODE(\"%s\",\"%s\"), size=%zu WHERE path=\"%s\" AND file_name=\"%s\";",
-//			buf, PICFS_PASSWORD, size, parent_path, file_name);
-//	}
-//	else {
-
 		FILE *fd =NULL;
 		if(offset == 0){
-		//DECRYPTION done
-//		sprintf(query,  "SELECT DECODE(file_data, \"%s\"), size  FROM file_table WHERE path=\"%s\" AND file_name=\"%s\";",
-//			PICFS_PASSWORD, parent_path, file_name);
-//		if (mysql_query(con, query)){
-//			mysql_close(con);
-//			exit(1);
-//		}
-//		MYSQL_RES *result = mysql_store_result(con);
-//		MYSQL_ROW row = mysql_fetch_row(result);
-//		char *temp_buffer = (char *)calloc(5000, sizeof(char));
-//		strcpy(temp_buffer, row[0]);
-
-
 		fd = fopen(TEMP_FILE_PATH, "w");
 		}
 		else {
@@ -620,18 +576,7 @@ static int picFS_write(const char *path, const char *buf, size_t size, off_t off
 		global_temp_size += size;
 
 		fclose(fd);
-//	}
-//	if(offset==0){
-//	if (mysql_real_query(con, query, QUERY_LENGTH)){
-//		fprintf(stdout, "mysql connection closed\n");
-//		fprintf(stdout, "The query is -- %s\n", query);
-//		fflush(stdout);
-//		mysql_close(con);
-//		exit(1);
-//	}}
-//	else{
 		write_flag = 1;
-//	}
 	freePathStruct(ps);
 	return size ;
 }
@@ -837,18 +782,15 @@ static int picFS_access(const char* path, int flags) {
 				char p[6];
 				char u[15], ui[7], *up;
 				char g[15], gi[7], *gp;
-//				int ulen, glen;
 				int i = 0;
 				
 				strcpy(u, "u:");
 				sprintf(ui, "%d", fc->uid);
 				strcat(u, ui);
-//				ulen = strlen(u);
 				
 				strcpy(g, "g:");
 				sprintf(gi, "%d", fc->gid);
 				strcat(g, gi);
-//				glen = strlen(g);
 
 				if((up=strstr(perm_acl, u)) != NULL) {
 					while(up[0] != '|') {
@@ -900,20 +842,6 @@ static int picFS_access(const char* path, int flags) {
 /*****************************************************************************/
 /*****************************************************************************/
 /*****************************************************************************/
-static int picFS_getxattr(const char *path, const char *attr, char *output, size_t output_size){
-	//DOES NOT NEED IMPLEMENT
-	return 0;
-}
-
-static int picFS_utimens(const char* path, const struct timespec tv[2]) {
-	//DOES NOT NEED IMPLEMENT
-	return 0;
-}
-
-static int picFS_truncate(const char* path, off_t offset) {
-	//DOES NOT NEED IMPLEMENT
-	return 0;
-}
 
 void picFS_destroy(void *s) {
 	mysql_close(con);
