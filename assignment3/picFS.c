@@ -435,7 +435,7 @@ static int picFS_open(const char *path, struct fuse_file_info *fi) {
 	int perm_unix = atoi(row[0]);
 	char perm_acl[MAX_ACL_SIZE];
 	strcpy(perm_acl, row[1]);
-	int flag = 0;
+	int flag = -1;
 
 	if(fc->uid == atoi(row[2])) { //OWNER
 		if(perm_unix & S_IRUSR)	{
